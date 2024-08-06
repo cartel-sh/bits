@@ -1,10 +1,10 @@
-## Kunet Agents
+## Kuhaku Agents
 
 ### Overview
 
-- Kumiko - watches over kunet service health
+- Kumiko - watches over kuhaku service health
 - Kudasai - staff & role manager
-- Sakura - keeps kunet up to date
+- Sakura - keeps kuhaku up to date
 
 ### Installation
 
@@ -18,7 +18,7 @@ nvm use 21
 
 1. Clone & Install
 ```sh
-git clone https://github.com/kunetglobal/bits && cd bits && npm install
+git clone https://github.com/kuhaku-xyz/bits && cd bits && npm install
 ```
 
 2. Bootstrap services with
