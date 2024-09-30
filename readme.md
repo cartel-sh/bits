@@ -1,10 +1,10 @@
-## Kuhaku Agents
+## kuhaku bits
 
 ### Overview
 
-- Kumiko - watches over kuhaku service health
-- Kudasai - staff & role manager
-- Sakura - keeps kuhaku up to date
+- kumiko - matrix <-> discord relay (via [mautrix](https://github.com/mautrix/discord))
+- kudasai - staff & role manager
+- sakura - kuhaku librarian
 
 ### Installation
 
@@ -22,7 +22,7 @@ git clone https://github.com/kuhaku-xyz/bits && cd bits && npm install
 ```
 
 2. Bootstrap services with
-```sh 
+```sh
 ./services/action.sh
 ```
 or start the watchtower manually:
