@@ -16,12 +16,18 @@ export interface AgentConfig {
 	token: string;
 	clientId: string;
 	intents: BitFieldResolvable<GatewayIntentsString, number>;
+	model?: string;
 	init?(): void;
 	messageScope: MessageScope;
 }
 
 export class Agent extends Client {
 	private config: AgentConfig;
+	
+	name: string;
+	clientId: string;
+	model?: string;
+	
 
 	constructor(config: AgentConfig) {
 		super({ intents: config.intents });
@@ -29,6 +35,9 @@ export class Agent extends Client {
 		if (config.init) config.init();
 
 		this.config = config;
+		this.name = config.name;
+		this.clientId = config.clientId;
+		this.model = config.model;
 
 		this.login(config.token);
 		this.once("ready", () => {
