@@ -60,12 +60,15 @@ export class Agent extends Client {
 
 	messageInScope(message: Message<boolean>): boolean {
 		const messageScope = this.config.messageScope;
+
 		if (message.author.bot && !messageScope.readBotsMessages) {
 			return false;
 		}
+
 		if (
-			!message.mentions.users.has(this.config.clientId) &&
-			messageScope.readMentionsOnly
+			(message.content.includes(this.name) ||
+				message.mentions.has(this.clientId)) &&
+			!messageScope.readMentionsOnly
 		) {
 			return false;
 		}

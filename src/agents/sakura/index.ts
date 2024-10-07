@@ -1,6 +1,5 @@
 import { id, tx } from "@instantdb/core";
 import { db } from "../../database/getDatabase";
-import type { StudySession } from "../../database/schema";
 import { Agent } from "../../framework/agent";
 
 const { SAKURA_TOKEN, SAKURA_CLIENT_ID } = process.env;
@@ -100,11 +99,22 @@ const startSession = async (userId: string) => {
 
 const endSession = async (sessionId: string) => {
 	const endTime = new Date();
-	const { data } = await db.queryOnce({ sessions: { id: sessionId } });
-	const session = data.sessions[0] as unknown as StudySession;
+	const { data } = await db.queryOnce({
+		sessions: {
+			$: {
+				where: { id: sessionId },
+			},
+		},
+	});
+
+	const session = data?.sessions?.[0];
 
 	if (!session) {
 		throw new Error("Session not found");
+	}
+
+	if (!session.startTime) {
+		throw new Error("Invalid session: missing start time");
 	}
 
 	const duration = endTime.getTime() - new Date(session.startTime).getTime();
