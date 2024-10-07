@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { Agent } from "../../framework/agent.ts";
+import { Agent } from "../../framework/agent";
 
 const getSystemPrompt = (name: string) => `Your name is ${name}. \
  You are about to play a Turing Test game as part of an experiment you are taking part in. \

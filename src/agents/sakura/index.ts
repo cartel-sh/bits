@@ -1,8 +1,6 @@
 import dotenv from "dotenv";
 import { Agent } from "../../framework/agent";
 
-dotenv.config();
-
 const { SAKURA_TOKEN, SAKURA_CLIENT_ID } = process.env;
 if (!SAKURA_TOKEN || !SAKURA_CLIENT_ID) {
 	throw new Error(

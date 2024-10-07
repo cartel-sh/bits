@@ -35,10 +35,6 @@ SAKURA_CLIENT_ID=your_sakura_client_id_here
 # kudasai
 KUDASAI_TOKEN=your_kudasai_token_here
 KUDASAI_CLIENT_ID=your_kudasai_client_id_here
-
-# kumiko
-# KUMIKO_TOKEN=your_kumiko_token_here
-# KUMIKO_CLIENT_ID=your_kumiko_client_id_here
 ```
 
 - `SAKURA_TOKEN` and `SAKURA_CLIENT_ID`: Required for the Sakura agent to authenticate with Discord.
@@ -59,11 +55,6 @@ You can run the different agents using the following commands:
   bun run sakura
   ```
 
-- To run Kumiko:
-  ```sh
-  bun run kumiko
-  ```
-
 For development with hot reloading:
 
 - Kudasai:
@@ -74,9 +65,4 @@ For development with hot reloading:
 - Sakura:
   ```sh
   bun run dev:sakura
-  ```
-
-- Kumiko:
-  ```sh
-  bun run dev:kumiko
   ```
