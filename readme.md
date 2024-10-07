@@ -6,6 +6,8 @@
 - kudasai - staff & role manager
 - sakura - kuhaku librarian
 
+agents use discord bots to interact with discord, matrix, and [google gemini js library](https://github.com/google-gemini/generative-ai-js) to query generative AI models.
+
 ### Installation
 
 1. Install Bun
@@ -17,6 +19,31 @@ curl -fsSL https://bun.sh/install | bash
 ```sh
 git clone https://github.com/kuhaku-xyz/bits && cd bits && bun install
 ```
+
+### Environment Variables
+
+Before running the agents, you need to set up the following environment variables in a `.env` file at the root of the project:
+
+```env
+# general
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# sakura
+SAKURA_TOKEN=your_sakura_token_here
+SAKURA_CLIENT_ID=your_sakura_client_id_here
+
+# kudasai
+KUDASAI_TOKEN=your_kudasai_token_here
+KUDASAI_CLIENT_ID=your_kudasai_client_id_here
+
+# kumiko
+# KUMIKO_TOKEN=your_kumiko_token_here
+# KUMIKO_CLIENT_ID=your_kumiko_client_id_here
+```
+
+- `SAKURA_TOKEN` and `SAKURA_CLIENT_ID`: Required for the Sakura agent to authenticate with Discord.
+- `KUDASAI_TOKEN` and `KUDASAI_CLIENT_ID`: Required for the Kudasai agent to authenticate with Discord.
+- `GEMINI_API_KEY`: Required for Kudasai to use the Google Generative AI model.
 
 ### Usage
 
@@ -53,16 +80,3 @@ For development with hot reloading:
   ```sh
   bun run dev:kumiko
   ```
-
-### (Deprecated) Services
-
-To bootstrap services:
-```sh
-./services/action.sh
-```
-
-Or start the watchtower manually:
-```sh
-bun run ./services/watchtower.ts
-```
-This will setup the services automatically on the next push.
