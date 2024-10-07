@@ -23,8 +23,8 @@ export const agent = new Agent({
 agent.on("messageCreate", async (message) => {
 	if (!agent.messageInScope(message)) return;
 
-	const content = message.content.toLowerCase();
-	const [command, ...args] = content.split(" ");
+	const content = message.cleanContent.toLowerCase();
+	const command = content.split(" ").at(-1);
 
 	switch (command) {
 		case "start":

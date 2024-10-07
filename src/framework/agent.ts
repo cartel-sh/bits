@@ -47,7 +47,7 @@ export class Agent extends Client {
 			if (!this.messageInScope(message)) return;
 
 			const messageContent = message.content.toLowerCase();
-			console.log(messageContent);
+			console.log(`${this.name} received message: ${messageContent}`);
 
 			if (messageContent.includes("status")) {
 				await this.sendMessage(
@@ -65,14 +65,15 @@ export class Agent extends Client {
 			return false;
 		}
 
-		if (
-			(message.content.includes(this.name) ||
-				message.mentions.has(this.clientId)) &&
-			!messageScope.readMentionsOnly
-		) {
-			return false;
+		if (messageScope.readMentionsOnly) {
+			console.log(message.mentions.users);
+			if (
+				!message.cleanContent.includes(this.name) &&
+				!message.mentions.users.has(this.clientId)
+			) {
+				return false;
+			}
 		}
-
 		return true;
 	}
 
