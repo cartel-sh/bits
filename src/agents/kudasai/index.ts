@@ -1,8 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import dotenv from "dotenv";
-import { Agent } from "../../framework/agent";
-
-dotenv.config();
+import { Agent } from "../../framework/agent.ts";
 
 const getSystemPrompt = (name: string) => `Your name is ${name}. \
  You are about to play a Turing Test game as part of an experiment you are taking part in. \
@@ -42,10 +39,13 @@ const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 export const agent = new Agent({
 	name: "kudasai",
+
 	token: KUDASAI_TOKEN,
-	model: "gemini-1.5-flash-002",
 	clientId: KUDASAI_CLIENT_ID,
+
+	model: "gemini-1.5-flash-002",
 	intents: ["Guilds", "GuildMessages", "MessageContent"],
+
 	messageScope: {
 		readMentionsOnly: true,
 		readBotsMessages: false,
