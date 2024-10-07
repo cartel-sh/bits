@@ -8,25 +8,61 @@
 
 ### Installation
 
-0. Install `nvm` & `npm`
+1. Install Bun
 ```sh
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-
-nvm install 21
-nvm use 21
+curl -fsSL https://bun.sh/install | bash
 ```
 
-1. Clone & Install
+2. Clone & Install
 ```sh
-git clone https://github.com/kuhaku-xyz/bits && cd bits && npm install
+git clone https://github.com/kuhaku-xyz/bits && cd bits && bun install
 ```
 
-2. Bootstrap services with
+### Usage
+
+You can run the different agents using the following commands:
+
+- To run Kudasai:
+  ```sh
+  bun run kudasai
+  ```
+
+- To run Sakura:
+  ```sh
+  bun run sakura
+  ```
+
+- To run Kumiko:
+  ```sh
+  bun run kumiko
+  ```
+
+For development with hot reloading:
+
+- Kudasai:
+  ```sh
+  bun run dev:kudasai
+  ```
+
+- Sakura:
+  ```sh
+  bun run dev:sakura
+  ```
+
+- Kumiko:
+  ```sh
+  bun run dev:kumiko
+  ```
+
+### (Deprecated) Services
+
+To bootstrap services:
 ```sh
 ./services/action.sh
 ```
-or start the watchtower manually:
+
+Or start the watchtower manually:
 ```sh
-npx ts-node ./services/watchtower.ts
+bun run ./services/watchtower.ts
 ```
-and it'll setup the services automagically on next push
+This will setup the services automatically on the next push.
