@@ -1,18 +1,22 @@
 // sakura
+// https://instantdb.com/dash?s=main&t=home&app=b01be168-13d9-467f-bcdb-bb213323088c
+
 import { i } from "@instantdb/core";
 
 const graph = i.graph(
 	{
-		$users: i.entity({
-			email: i.any().unique(),
+		sessions: i.entity({
+			duration: i.any(),
+			startTime: i.any(),
+			endTime: i.any(),
 		}),
-		sessions: i.entity({}),
 		users: i.entity({
 			createdAt: i.any(),
 			handle: i.any().unique(),
 			role: i.any(),
 		}),
 	},
+
 	{
 		sessionsUser: {
 			forward: {
