@@ -23,11 +23,10 @@ export interface AgentConfig {
 
 export class Agent extends Client {
 	private config: AgentConfig;
-	
+
 	name: string;
 	clientId: string;
 	model?: string;
-	
 
 	constructor(config: AgentConfig) {
 		super({ intents: config.intents });

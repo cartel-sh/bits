@@ -1,17 +1,19 @@
 {
 	"name": "bits",
 	"author": "kualta <contact@kualta.dev>",
-	"description": "kunet agents",
-	"version": "1.0.0",
+	"description": "kuhaku agents",
+	"version": "2.0.0",
 	"license": "MIT",
-	"main": "index.js",
 	"scripts": {
-		"dev": "tsx watch src/agents/kudasai/index.ts",
-		"start": "ts-node src/agents/kudasai/index.ts",
-		"build": "tsup src/index.ts --minify",
-		"format": "npx @biomejs/biome format --write ./src/*",
-		"lint": "npx @biomejs/biome lint --apply-unsafe ./src/*",
-		"check": "npx @biomejs/biome check --apply-unsafe ./src/*"
+		"format": "bunx @biomejs/biome format --write ./src/*",
+		"lint": "bunx @biomejs/biome lint --apply-unsafe ./src/*",
+		"check": "bunx @biomejs/biome check --apply-unsafe ./src/*",
+		"kudasai": "bun run src/agents/kudasai/index.ts",
+		"sakura": "bun run src/agents/sakura/index.ts",
+		"kumiko": "bun run src/agents/kumiko/index.ts",
+		"dev:kudasai": "bun run --watch src/agents/kudasai/index.ts",
+		"dev:sakura": "bun run --watch src/agents/sakura/index.ts",
+		"dev:kumiko": "bun run --watch src/agents/kumiko/index.ts"
 	},
 	"dependencies": {
 		"@google/generative-ai": "^0.21.0",

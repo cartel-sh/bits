@@ -1,6 +1,6 @@
+import { exec } from "node:child_process";
 import type { Request, Response } from "express";
 import express from "express";
-import { exec } from "node:child_process";
 
 const app = express();
 

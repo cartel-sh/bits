@@ -1,5 +1,5 @@
-import { Agent } from "../../framework/agent";
 import dotenv from "dotenv";
+import { Agent } from "../../framework/agent";
 
 dotenv.config();
 
