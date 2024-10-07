@@ -44,8 +44,8 @@ agent.on("messageCreate", async (message) => {
 					await message.reply("Please provide a session ID.");
 					return;
 				}
-				const { duration } = await endSession(sessionId);
-				const durationMinutes = Math.round(duration / 60000);
+				const result = await endSession(sessionId);
+				const durationMinutes = Math.round(result.duration / 60000);
 				await message.reply(
 					`Ended study session. Duration: ${durationMinutes} minutes.`,
 				);
@@ -64,8 +64,8 @@ agent.on("messageCreate", async (message) => {
 				} else {
 					const sessionList = sessions
 						.map((s) => {
-							const duration = s.duration
-								? `${Math.round(s.duration / 60000)} minutes`
+							const duration = s.endTime
+								? `${Math.round((new Date(s.endTime).getTime() - new Date(s.startTime).getTime()) / 60000)} minutes`
 								: "Ongoing";
 							return `ID: ${s.id}, Duration: ${duration}`;
 						})
@@ -84,16 +84,15 @@ agent.on("messageCreate", async (message) => {
 	}
 });
 
-const startSession = async (handle: string) => {
+const startSession = async (userId: string) => {
 	const sessionId = id();
-	const startTime = new Date();
+	const startTime = new Date().toISOString();
 
 	await db.transact([
 		tx.sessions[sessionId].update({
-			handle,
 			startTime,
-			createdAt: startTime,
 		}),
+		tx.sessions[sessionId].link({ user: userId }),
 	]);
 
 	return sessionId;
@@ -102,7 +101,7 @@ const startSession = async (handle: string) => {
 const endSession = async (sessionId: string) => {
 	const endTime = new Date();
 	const { data } = await db.queryOnce({ sessions: { id: sessionId } });
-	const session = data.sessions[0] as StudySession;
+	const session = data.sessions[0] as unknown as StudySession;
 
 	if (!session) {
 		throw new Error("Session not found");
@@ -112,7 +111,7 @@ const endSession = async (sessionId: string) => {
 
 	await db.transact([
 		tx.sessions[sessionId].update({
-			endTime,
+			endTime: endTime.toISOString(),
 			duration,
 		}),
 	]);
@@ -120,7 +119,12 @@ const endSession = async (sessionId: string) => {
 	return { sessionId, duration };
 };
 
-const getUserSessions = async (handle: string) => {
-	const { data } = await db.queryOnce({ sessions: { handle } });
-	return data.sessions as unknown as StudySession[];
+const getUserSessions = async (userId: string) => {
+	const { data } = await db.queryOnce({
+		users: {
+			id: userId,
+			sessions: {},
+		},
+	});
+	return data.users[0]?.sessions || [];
 };
