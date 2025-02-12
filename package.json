@@ -1,38 +1,41 @@
 {
-	"name": "bits",
-	"author": "kualta <contact@kualta.dev>",
-	"description": "kuhaku agents",
-	"version": "2.0.0",
-	"license": "MIT",
-	"scripts": {
-		"format": "bunx @biomejs/biome format --write ./src/*",
-		"lint": "bunx @biomejs/biome lint --apply-unsafe ./src/*",
-		"check": "bunx @biomejs/biome check --apply-unsafe ./src/*",
-		"kudasai": "bun run src/agents/kudasai/index.ts",
-		"sakura": "bun run src/agents/sakura/index.ts",
-		"kumiko": "bun run src/agents/kumiko/index.ts",
-		"dev:kudasai": "bun run --watch src/agents/kudasai/index.ts",
-		"dev:sakura": "bun run --watch src/agents/sakura/index.ts",
-		"dev:kumiko": "bun run --watch src/agents/kumiko/index.ts"
-	},
-	"dependencies": {
-		"@google/generative-ai": "^0.21.0",
-		"@instantdb/core": "^0.14.12",
-		"discord.js": "^14.15.3",
-		"dotenv": "^16.4.5",
-		"express": "^4.21.2"
-	},
-	"devDependencies": {
-		"@biomejs/biome": "^1.5.1",
-		"@types/bun": "latest",
-		"@types/express": "^4.17.21",
-		"@types/node": "^20.11.25",
-		"instant-cli": "^0.14.12",
-		"ts-node": "^10.9.2",
-		"tsup": "^8.0.1",
-		"tsx": "^4.7.0",
-		"typescript": "^5.4.2"
-	},
-	"module": "index.ts",
-	"type": "module"
+  "name": "bits",
+  "author": "kualta <contact@kualta.dev>",
+  "description": "kuhaku agents",
+  "version": "2.0.0",
+  "license": "MIT",
+  "scripts": {
+    "format": "bunx @biomejs/biome format --write ./src/*",
+    "lint": "bunx @biomejs/biome lint --apply-unsafe ./src/*",
+    "check": "bunx @biomejs/biome check --apply-unsafe ./src/*",
+    "kudasai": "bun run src/agents/kudasai/index.ts",
+    "sakura": "bun run src/agents/sakura/index.ts",
+    "kumiko": "bun run src/agents/kumiko/index.ts",
+    "dev:kudasai": "bun run --watch src/agents/kudasai/index.ts",
+    "dev:sakura": "bun run --watch src/agents/sakura/index.ts",
+    "dev:kumiko": "bun run --watch src/agents/kumiko/index.ts"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "@instantdb/core": "^0.17.12",
+    "discord.js": "^14.18.0",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@types/bun": "^1.2.2",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.13.1",
+    "instant-cli": "^0.17.12",
+    "ts-node": "^10.9.2",
+    "tsup": "^8.3.6",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  },
+  "module": "index.ts",
+  "type": "module",
+  "trustedDependencies": [
+    "@biomejs/biome"
+  ]
 }
