@@ -1,6 +1,12 @@
 import { id, tx } from "@instantdb/core";
 import { db } from "../../database/getDatabase";
 import { Agent } from "../../framework/agent";
+import { createClient, RedisClientType } from "redis";
+import { trackVoiceStateChange } from "./voiceActivity";
+import { voiceStatsCommand } from "./commands/voiceStats";
+import { REST } from "@discordjs/rest";
+import { Routes } from "discord-api-types/v9";
+import { Client, VoiceState, Interaction } from "discord.js";
 
 const { SAKURA_TOKEN, SAKURA_CLIENT_ID } = process.env;
 if (!SAKURA_TOKEN || !SAKURA_CLIENT_ID) {
@@ -9,22 +15,87 @@ if (!SAKURA_TOKEN || !SAKURA_CLIENT_ID) {
 	);
 }
 
+// Initialize Redis client
+const redis: RedisClientType = createClient({
+	url: process.env.REDIS_URL || 'redis://localhost:6379'
+});
+redis.connect().catch(console.error);
+
+// Create Discord client
+const client = new Client({
+	intents: [
+		"Guilds",
+		"GuildMessages",
+		"MessageContent",
+		"GuildVoiceStates"
+	]
+});
+
 export const agent = new Agent({
 	name: "sakura",
 	token: SAKURA_TOKEN,
 	clientId: SAKURA_CLIENT_ID,
-	intents: ["Guilds", "GuildMessages", "MessageContent"],
+	intents: [
+		"Guilds",
+		"GuildMessages",
+		"MessageContent",
+		"GuildVoiceStates"
+	],
 	messageScope: {
 		readMentionsOnly: true,
 		readBotsMessages: false,
 	},
 });
 
+// Register slash commands
+const rest = new REST({ version: "9" }).setToken(SAKURA_TOKEN);
+const commands = [voiceStatsCommand.data.toJSON()];
+
+(async () => {
+	try {
+		console.log("Started refreshing application (/) commands.");
+		await rest.put(
+			Routes.applicationCommands(SAKURA_CLIENT_ID),
+			{ body: commands }
+		);
+		console.log("Successfully reloaded application (/) commands.");
+	} catch (error) {
+		console.error(error);
+	}
+})();
+
+// Handle voice state updates
+client.on("voiceStateUpdate", async (oldState: VoiceState, newState: VoiceState) => {
+	try {
+		await trackVoiceStateChange(redis, oldState, newState);
+	} catch (error) {
+		console.error("Error tracking voice activity:", error);
+	}
+});
+
+// Handle slash commands
+client.on("interactionCreate", async (interaction: Interaction) => {
+	if (!interaction.isCommand()) return;
+
+	if (interaction.commandName === "voicestats") {
+		try {
+			await voiceStatsCommand.execute(interaction, redis);
+		} catch (error) {
+			console.error("Error executing voice stats command:", error);
+			await interaction.reply({
+				content: "An error occurred while processing your command.",
+				ephemeral: true
+			});
+		}
+	}
+});
+
+// Original study session functionality
 agent.on("messageCreate", async (message) => {
 	if (!agent.messageInScope(message)) return;
 
 	const content = message.cleanContent.toLowerCase();
-	const command = content.split(" ").at(-1);
+	const [command, ...args] = content.split(" ");
 
 	switch (command) {
 		case "start":
@@ -38,7 +109,7 @@ agent.on("messageCreate", async (message) => {
 
 		case "end":
 			try {
-				const [sessionId] = args;
+				const sessionId = args[0];
 				if (!sessionId) {
 					await message.reply("Please provide a session ID.");
 					return;
@@ -78,11 +149,12 @@ agent.on("messageCreate", async (message) => {
 
 		default:
 			await message.reply(
-				"Unknown command. Available commands: start, end, sessions",
+				"Unknown command. Available commands: start, end, sessions, or use /voicestats for voice activity tracking",
 			);
 	}
 });
 
+// Study session helper functions
 const startSession = async (userId: string) => {
 	const sessionId = id();
 	const startTime = new Date().toISOString();
