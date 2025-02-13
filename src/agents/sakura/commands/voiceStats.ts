@@ -1,5 +1,5 @@
 import { SlashCommandBuilder } from "@discordjs/builders";
-import type { ChatInputCommandInteraction } from "discord.js";
+import { type ChatInputCommandInteraction, MessageFlags } from "discord.js";
 import type { RedisClientType } from "redis";
 import {
 	checkGoalProgress,
@@ -80,7 +80,8 @@ export const voiceStatsCommand = {
 
 					await interaction.reply({
 						content: `Today's voice activity: ${hours}h ${minutes}m`,
-						ephemeral: true,
+
+						flags: MessageFlags.Ephemeral,
 					});
 					break;
 				}
@@ -97,7 +98,8 @@ export const voiceStatsCommand = {
 
 					await interaction.reply({
 						content: `Your weekly voice activity:\n${formattedStats}`,
-						ephemeral: true,
+
+						flags: MessageFlags.Ephemeral,
 					});
 					break;
 				}
@@ -121,7 +123,8 @@ export const voiceStatsCommand = {
 
 					await interaction.reply({
 						content: `Your monthly voice activity:\nTotal: ${totalHours}h ${totalMinutes}m\n\nDaily breakdown:\n${formattedStats}`,
-						ephemeral: true,
+
+						flags: MessageFlags.Ephemeral,
 					});
 					break;
 				}
@@ -138,7 +141,8 @@ export const voiceStatsCommand = {
 					await setActivityGoal(redis, userId, type, hours, notifications);
 					await interaction.reply({
 						content: `Successfully set ${type} goal to ${hours} hours${notifications ? " with notifications enabled" : ""}`,
-						ephemeral: true,
+
+						flags: MessageFlags.Ephemeral,
 					});
 					break;
 				}
@@ -150,7 +154,8 @@ export const voiceStatsCommand = {
 						await interaction.reply({
 							content:
 								"You haven't set any goals yet. Use `/voicestats setgoal` to set your first goal!",
-							ephemeral: true,
+
+							flags: MessageFlags.Ephemeral,
 						});
 						return;
 					}
@@ -173,7 +178,8 @@ export const voiceStatsCommand = {
 
 					await interaction.reply({
 						content: `Your Voice Activity Goals:\n\n${formattedProgress}`,
-						ephemeral: true,
+
+						flags: MessageFlags.Ephemeral,
 					});
 					break;
 				}
@@ -182,7 +188,8 @@ export const voiceStatsCommand = {
 			console.error("Error executing voice stats command:", error);
 			await interaction.reply({
 				content: "An error occurred while processing your request.",
-				ephemeral: true,
+
+				flags: MessageFlags.Ephemeral,
 			});
 		}
 	},

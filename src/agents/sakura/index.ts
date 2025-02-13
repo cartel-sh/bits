@@ -199,7 +199,6 @@ const scheduleResets = () => {
 	}, timeUntilNextMonth);
 };
 
-// Start scheduling resets when the client is ready
 client.once("ready", () => {
 	console.log("Sakura is ready!");
 	scheduleResets();
