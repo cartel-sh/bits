@@ -1,88 +1,93 @@
 import {
-	type BitFieldResolvable,
-	Client,
-	type GatewayIntentsString,
-	type Message,
-	type TextChannel,
+    type BitFieldResolvable,
+    Client,
+    type GatewayIntentsString,
+    type Message,
+    type TextChannel,
 } from "discord.js";
 
 interface MessageScope {
-	readBotsMessages?: boolean;
-	readMentionsOnly?: boolean;
+  readBotsMessages?: boolean;
+  readMentionsOnly?: boolean;
 }
 
 export interface AgentConfig {
-	name: string;
-	token: string;
-	clientId: string;
-	intents: BitFieldResolvable<GatewayIntentsString, number>;
-	model?: string;
-	init?(): void;
-	messageScope: MessageScope;
+  name: string;
+  token: string;
+  clientId: string;
+  intents: BitFieldResolvable<GatewayIntentsString, number>;
+  model?: string;
+  init?(): void;
+  messageScope: MessageScope;
 }
 
 export class Agent extends Client {
-	private config: AgentConfig;
+  private config: AgentConfig;
 
-	name: string;
-	clientId: string;
-	model?: string;
+  name: string;
+  clientId: string;
+  model?: string;
 
-	constructor(config: AgentConfig) {
-		super({ intents: config.intents });
 
-		if (config.init) config.init();
+  constructor(config: AgentConfig) {
+    super({ intents: config.intents });
 
-		this.config = config;
-		this.name = config.name;
-		this.clientId = config.clientId;
-		this.model = config.model;
+    if (config.init) {
+      config.init();
+    }
 
-		this.login(config.token);
-		this.once("ready", () => {
-			console.log(`${config.name} is ready!`);
-		});
+    this.config = config;
+    this.name = config.name;
+    this.clientId = config.clientId;
+    this.model = config.model;
 
-		this.on("messageCreate", async (message) => {
-			if (!this.messageInScope(message)) return;
+    this.login(config.token);
+    this.once("ready", () => {
+      console.log(`${config.name} is ready!`);
+    });
 
-			const messageContent = message.content.toLowerCase();
-			console.log(`${this.name} received message: ${messageContent}`);
+    this.on("messageCreate", async (message) => {
+      if (!this.messageInScope(message)) {
+        return;
+      }
 
-			if (messageContent.includes("status")) {
-				await this.sendMessage(
-					message.channelId,
-					"**all systems operational**",
-				);
-			}
-		});
-	}
+      const messageContent = message.content.toLowerCase();
+      console.log(`${this.name} received message: ${messageContent}`);
 
-	messageInScope(message: Message<boolean>): boolean {
-		const messageScope = this.config.messageScope;
+      if (messageContent.includes("status")) {
+        await this.sendMessage(
+          message.channelId,
+          "**all systems operational**",
+        );
+      }
+    });
+  }
 
-		if (message.author.bot && !messageScope.readBotsMessages) {
-			return false;
-		}
+  messageInScope(message: Message<boolean>): boolean {
+    const messageScope = this.config.messageScope;
 
-		if (messageScope.readMentionsOnly) {
-			console.log(message.mentions.users);
-			if (
-				!message.cleanContent.includes(this.name) &&
-				!message.mentions.users.has(this.clientId)
-			) {
-				return false;
-			}
-		}
-		return true;
-	}
+    if (message.author.bot && !messageScope.readBotsMessages) {
+      return false;
+    }
 
-	async sendMessage(channelId: string, message: string): Promise<void> {
-		const channel = await this.channels.fetch(channelId);
-		if (channel?.isTextBased()) {
-			(channel as TextChannel).send(message);
-		} else {
-			console.error(`channel ${channelId} is not a text channel.`);
-		}
-	}
+    if (messageScope.readMentionsOnly) {
+      console.log(message.mentions.users);
+      if (
+        !message.cleanContent.includes(this.name) &&
+        !message.mentions.users.has(this.clientId)
+      ) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  async sendMessage(channelId: string, message: string): Promise<void> {
+    const channel = await this.channels.fetch(channelId);
+    if (channel?.isTextBased()) {
+      (channel as TextChannel).send(message);
+    } else {
+      console.error(`channel ${channelId} is not a text channel.`);
+    }
+  }
 }

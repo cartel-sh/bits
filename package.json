@@ -6,7 +6,7 @@
   "license": "MIT",
   "scripts": {
     "format": "bunx @biomejs/biome format --write ./src/*",
-    "lint": "bunx @biomejs/biome lint --write ./src/*",
+    "lint": "bunx @biomejs/biome lint --write --unsafe ./src/*",
     "check": "bunx @biomejs/biome check --write ./src/*",
     "kudasai": "bun run src/agents/kudasai/index.ts",
     "sakura": "bun run src/agents/sakura/index.ts",
@@ -40,7 +40,5 @@
   },
   "module": "index.ts",
   "type": "module",
-  "trustedDependencies": [
-    "@biomejs/biome"
-  ]
+  "trustedDependencies": ["@biomejs/biome"]
 }

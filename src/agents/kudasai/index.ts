@@ -30,81 +30,83 @@ const getSystemPrompt = (name: string) => `Your name is ${name}. \
 const { KUDASAI_TOKEN, KUDASAI_CLIENT_ID, GEMINI_API_KEY } = process.env;
 
 if (!KUDASAI_TOKEN || !KUDASAI_CLIENT_ID || !GEMINI_API_KEY) {
-	throw new Error(
-		"Environment variables KUDASAI_TOKEN, KUDASAI_CLIENT_ID and GEMINI_API_KEY are required",
-	);
+  throw new Error(
+    "Environment variables KUDASAI_TOKEN, KUDASAI_CLIENT_ID and GEMINI_API_KEY are required",
+  );
 }
 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 export const agent = new Agent({
-	name: "kudasai",
+  name: "kudasai",
 
-	token: KUDASAI_TOKEN,
-	clientId: KUDASAI_CLIENT_ID,
+  token: KUDASAI_TOKEN,
+  clientId: KUDASAI_CLIENT_ID,
 
-	model: "gemini-1.5-flash-002",
-	intents: ["Guilds", "GuildMessages", "MessageContent"],
+  model: "gemini-1.5-flash-002",
+  intents: ["Guilds", "GuildMessages", "MessageContent"],
 
-	messageScope: {
-		readMentionsOnly: true,
-		readBotsMessages: false,
-	},
+  messageScope: {
+    readMentionsOnly: true,
+    readBotsMessages: false,
+  },
 });
 
 agent.on("messageCreate", async (message) => {
-	if (message.author.bot) return;
+  if (message.author.bot) {
+    return;
+  }
 
-	if (
-		message.content.includes(agent.name) ||
-		message.mentions.has(agent.clientId)
-	) {
-		const userMessage = message.content
-			.replace(`<@!${agent.clientId}>`, "")
-			.trim();
+  if (
+    message.content.includes(agent.name) ||
+    message.mentions.has(agent.clientId)
+  ) {
+    const userMessage = message.content
+      .replace(`<@!${agent.clientId}>`, "")
+      .trim();
 
-		if (!agent.model) {
-			await message.reply("I'm not sure what to say...");
-			return;
-		}
+    if (!agent.model) {
+      await message.reply("I'm not sure what to say...");
+      return;
+    }
 
-		const model = genAI.getGenerativeModel({
-			model: agent.model,
-			systemInstruction: getSystemPrompt(agent.name),
-		});
+    const model = genAI.getGenerativeModel({
+      model: agent.model,
+      systemInstruction: getSystemPrompt(agent.name),
+    });
 
-		const generationConfig = {
-			temperature: 0.9,
-			topK: 1,
-			topP: 1,
-			maxOutputTokens: 2048,
-		};
+    const generationConfig = {
+      temperature: 0.9,
+      topK: 1,
+      topP: 1,
+      maxOutputTokens: 2048,
+    };
 
-		const parts = [
-			{
-				text: `input: ${userMessage}`,
-			},
-		];
+    const parts = [
+      {
+        text: `input: ${userMessage}`,
+      },
+    ];
 
-		const result = await model.generateContent({
-			contents: [{ role: "user", parts }],
-			generationConfig,
-		});
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts }],
+      generationConfig,
+    });
 
-		const reply = result.response.text();
+    const reply = result.response.text();
 
-		// due to Discord limitations, we can only send 2000 characters at a time, so we need to split the message
-		if (reply.length > 2000) {
-			const replyArray = reply.match(/[\s\S]{1,2000}/g);
+    // due to Discord limitations, we can only send 2000 characters at a time, so we need to split the message
+    if (reply.length > 2000) {
+      const replyArray = reply.match(/[\s\S]{1,2000}/g);
 
-			if (replyArray) {
-				for (const msg of replyArray) {
-					await message.reply(msg);
-				}
-			}
-			return;
-		}
+      if (replyArray) {
+        for (const msg of replyArray) {
+          await message.reply(msg);
+        }
+      }
+      return;
+    }
 
-		message.reply(reply);
-	}
+    message.reply(reply);
+  }
 });
