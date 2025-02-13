@@ -1,9 +1,9 @@
 import { REST } from "@discordjs/rest";
 import { Routes } from "discord-api-types/v9";
-import { Client, type Interaction, type VoiceState } from "discord.js";
+import { Client, MessageFlags, type Interaction, type VoiceState } from "discord.js";
 import { type RedisClientType, createClient } from "redis";
 import { Agent } from "../../framework/agent";
-import { setChannelsCommand } from "./commands/setChannels";
+import { checkChannelsCommand, setChannelsCommand } from "./commands/setChannels";
 import { voiceStatsCommand } from "./commands/voiceStats";
 import {
 	checkAndSendNotifications,
@@ -23,27 +23,50 @@ if (!SAKURA_TOKEN || !SAKURA_CLIENT_ID) {
 const redis: RedisClientType = createClient({
 	url: process.env.REDIS_URL || "redis://localhost:6379",
 });
-redis.connect().catch(console.error);
+
+redis.on('connect', () => {
+	console.log('Redis client connecting...');
+});
+
+redis.on('ready', () => {
+	console.log('Redis client connected and ready');
+});
+
+redis.on('error', (err) => {
+	console.error('Redis client error:', err);
+});
+
+redis.on('end', () => {
+	console.log('Redis client connection closed');
+});
+
+// Connect to Redis
+console.log('Attempting to connect to Redis...');
+redis.connect().catch(err => {
+	console.error('Failed to connect to Redis:', err);
+	process.exit(1); // Exit if we can't connect to Redis
+});
 
 const client = new Client({
 	intents: ["Guilds", "GuildMessages", "MessageContent", "GuildVoiceStates"],
 });
 
-export const agent = new Agent({
-	name: "sakura",
-	token: SAKURA_TOKEN,
-	clientId: SAKURA_CLIENT_ID,
-	intents: ["Guilds", "GuildMessages", "MessageContent", "GuildVoiceStates"],
-	messageScope: {
-		readMentionsOnly: true,
-		readBotsMessages: false,
-	},
-});
+// export const agent = new Agent({
+// 	name: "sakura",
+// 	token: SAKURA_TOKEN,
+// 	clientId: SAKURA_CLIENT_ID,
+// 	intents: ["Guilds", "GuildMessages", "MessageContent", "GuildVoiceStates"],
+// 	messageScope: {
+// 		readMentionsOnly: true,
+// 		readBotsMessages: false,
+// 	},
+// });
 
 const rest = new REST({ version: "9" }).setToken(SAKURA_TOKEN);
 const commands = [
 	voiceStatsCommand.data.toJSON(),
 	setChannelsCommand.data.toJSON(),
+	checkChannelsCommand.data.toJSON(),
 ];
 
 (async () => {
@@ -61,11 +84,15 @@ const commands = [
 client.on(
 	"voiceStateUpdate",
 	async (oldState: VoiceState, newState: VoiceState) => {
+		console.log("Voice state update detected!");
+		console.log("Old channel:", oldState.channelId);
+		console.log("New channel:", newState.channelId);
 		try {
 			await trackVoiceStateChange(redis, oldState, newState);
 			const userId = newState.member?.user.id || oldState.member?.user.id;
 			const guildId = newState.guild.id;
 			if (userId) {
+				console.log(`Checking notifications for user ${userId} in guild ${guildId}`);
 				await checkAndSendNotifications(client, redis, userId, guildId);
 			}
 		} catch (error) {
@@ -85,6 +112,9 @@ client.on("interactionCreate", async (interaction: Interaction) => {
 			case "setchannel":
 				await setChannelsCommand.execute(interaction, redis);
 				break;
+			case "checkchannels":
+				await checkChannelsCommand.execute(interaction, redis);
+				break;
 			default:
 				console.warn(`Unknown command: ${interaction.commandName}`);
 		}
@@ -93,77 +123,13 @@ client.on("interactionCreate", async (interaction: Interaction) => {
 		if (!interaction.replied) {
 			await interaction.reply({
 				content: "An error occurred while processing your command.",
-				ephemeral: true,
+				flags: MessageFlags.Ephemeral,
 			});
 		}
 	}
 });
 
-// agent.on("messageCreate", async (message) => {
-// 	if (!agent.messageInScope(message)) return;
 
-// 	const content = message.cleanContent.toLowerCase();
-// 	const [command, ...args] = content.split(" ");
-
-// 	switch (command) {
-// 		case "start":
-// 			try {
-// 				const sessionId = await startSession(message.author.id);
-// 				await message.reply(`Started a new study session. ID: ${sessionId}`);
-// 			} catch (error) {
-// 				await message.reply("Failed to start session. Please try again.");
-// 			}
-// 			break;
-
-// 		case "end":
-// 			try {
-// 				const sessionId = args[0];
-// 				if (!sessionId) {
-// 					await message.reply("Please provide a session ID.");
-// 					return;
-// 				}
-// 				const result = await endSession(sessionId);
-// 				const durationMinutes = Math.round(result.duration / 60000);
-// 				await message.reply(
-// 					`Ended study session. Duration: ${durationMinutes} minutes.`,
-// 				);
-// 			} catch (error) {
-// 				await message.reply(
-// 					"Failed to end session. Please check the session ID and try again.",
-// 				);
-// 			}
-// 			break;
-
-// 		case "sessions":
-// 			try {
-// 				const sessions = await getUserSessions(message.author.id);
-// 				if (sessions.length === 0) {
-// 					await message.reply("You have no recorded study sessions.");
-// 				} else {
-// 					const sessionList = sessions
-// 						.map((s: any) => {
-// 							const duration = s.endTime
-// 								? `${Math.round((new Date(s.endTime).getTime() - new Date(s.startTime).getTime()) / 60000)} minutes`
-// 								: "Ongoing";
-// 							return `ID: ${s.id}, Duration: ${duration}`;
-// 						})
-// 						.join("\n");
-// 					await message.reply(`Your study sessions:\n${sessionList}`);
-// 				}
-// 			} catch (error) {
-// 				await message.reply("Failed to fetch sessions. Please try again.");
-// 			}
-// 			break;
-
-// 		default:
-// 			await message.reply(
-// 				"Unknown command. Available commands: start, end, sessions, or use /voicestats for voice activity tracking",
-// 			);
-// 	}
-// });
-
-
-// Schedule notification resets
 const scheduleResets = () => {
 	const now = new Date();
 
@@ -208,3 +174,6 @@ client.once("ready", () => {
 	console.log("Sakura is ready!");
 	scheduleResets();
 });
+
+// Login to Discord with the client
+client.login(SAKURA_TOKEN);
