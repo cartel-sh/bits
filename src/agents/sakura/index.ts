@@ -24,32 +24,50 @@ const redis: RedisClientType = createClient({
 	url: process.env.REDIS_URL || "redis://localhost:6379",
 });
 
-redis.on('connect', () => {
-	console.log('Redis client connecting...');
-});
-
-redis.on('ready', () => {
-	console.log('Redis client connected and ready');
-});
-
-redis.on('error', (err) => {
-	console.error('Redis client error:', err);
-});
-
-redis.on('end', () => {
-	console.log('Redis client connection closed');
-});
-
-// Connect to Redis
-console.log('Attempting to connect to Redis...');
-redis.connect().catch(err => {
-	console.error('Failed to connect to Redis:', err);
-	process.exit(1); // Exit if we can't connect to Redis
-});
-
 const client = new Client({
 	intents: ["Guilds", "GuildMessages", "MessageContent", "GuildVoiceStates"],
 });
+
+const connectDiscord = async (client: Client, token: string) => {
+	try {
+		await client.login(token);
+	} catch (error) {
+		console.error('Failed to connect to Discord:', error);
+		console.log('Attempting to reconnect in 5 seconds...');
+		setTimeout(() => connectDiscord(client, token), 5000);
+	}
+};
+
+const connectRedis = async (redis: RedisClientType) => {
+	try {
+		await redis.connect();
+	} catch (err) {
+		console.error('Failed to connect to Redis:', err);
+		console.log('Attempting to reconnect in 5 seconds...');
+		setTimeout(() => connectRedis(redis), 5000);
+	}
+};
+
+// Enhanced Redis event handlers
+redis.on('error', (err) => {
+	console.error('Redis client error:', err);
+	// Only attempt reconnect if connection is lost
+	if (err.code === 'ECONNREFUSED' || err.code === 'ECONNRESET') {
+		console.log('Connection lost, attempting to reconnect...');
+		setTimeout(() => connectRedis(redis), 5000);
+	}
+});
+
+// Enhanced Discord client error handling
+client.on('error', (error) => {
+	console.error('Discord client error:', error);
+	// Attempt to reconnect on connection errors
+	if (error.message.includes('ECONNRESET') || error.message.includes('ECONNREFUSED')) {
+		console.log('Connection lost, attempting to reconnect...');
+		setTimeout(() => connectDiscord(client, SAKURA_TOKEN), 5000);
+	}
+});
+
 
 // export const agent = new Agent({
 // 	name: "sakura",
@@ -69,17 +87,29 @@ const commands = [
 	checkChannelsCommand.data.toJSON(),
 ];
 
-(async () => {
+const startBot = async () => {
 	try {
-		console.log("Started refreshing application (/) commands.");
+		console.log('Connecting to Redis...');
+		await connectRedis(redis);
+		
+		console.log('Connecting to Discord...');
+		await connectDiscord(client, SAKURA_TOKEN);
+		
+		console.log('Registering commands...');
 		await rest.put(Routes.applicationCommands(SAKURA_CLIENT_ID), {
 			body: commands,
+		}).catch(error => {
+			console.error('Failed to register commands:', error);
 		});
-		console.log("Successfully reloaded application (/) commands.");
+		
 	} catch (error) {
-		console.error(error);
+		console.error('Startup error:', error);
+		console.log('Attempting restart in 5 seconds...');
+		setTimeout(startBot, 5000);
 	}
-})();
+};
+
+startBot();
 
 client.on(
 	"voiceStateUpdate",
@@ -174,6 +204,3 @@ client.once("ready", () => {
 	console.log("Sakura is ready!");
 	scheduleResets();
 });
-
-// Login to Discord with the client
-client.login(SAKURA_TOKEN);
