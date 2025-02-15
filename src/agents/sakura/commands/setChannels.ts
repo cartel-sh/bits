@@ -6,6 +6,7 @@ import {
 } from "discord.js";
 import type { RedisClientType } from "redis";
 
+
 export const setChannelsCommand = {
   data: new SlashCommandBuilder()
     .setName("setchannel")
@@ -29,19 +30,8 @@ export const setChannelsCommand = {
   ) => {
     console.log("Executing setchannel command...");
 
-    const subcommand = interaction.options.getSubcommand();
-    console.log(`Subcommand: ${subcommand}`);
-
-    const channel = interaction.options.getChannel("channel", true);
-    console.log(
-      `Selected channel: ${channel.name} (${channel.id}) of type ${channel.type}`,
-    );
-
     const guildId = interaction.guildId;
-    console.log(`Guild ID: ${guildId}`);
-
     if (!guildId) {
-      console.warn("Command used outside of a guild");
       await interaction.reply({
         content: "This command can only be used in a server.",
         flags: MessageFlags.Ephemeral,
@@ -49,108 +39,43 @@ export const setChannelsCommand = {
       return;
     }
 
+    const voiceChannel = interaction.options.getChannel("voice", true);
+    const textChannel = interaction.options.getChannel("text", true);
+
+    if (voiceChannel.type !== ChannelType.GuildVoice) {
+      await interaction.reply({
+        content: "Please select a voice channel for the voice option.",
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
+    if (textChannel.type !== ChannelType.GuildText) {
+      await interaction.reply({
+        content: "Please select a text channel for the text option.",
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
     try {
-      switch (subcommand) {
-        case "text": {
-          console.log("Processing text channel setting...");
-          if (channel.type !== ChannelType.GuildText) {
-            console.warn(
-              `Invalid channel type for text channel: ${channel.type}`,
-            );
-            await interaction.reply({
-              content: "Please select a text channel.",
-              flags: MessageFlags.Ephemeral,
-            });
-            return;
-          }
+      await redis.set(`voiceChannel:${guildId}`, voiceChannel.id);
+      await redis.set(`textChannel:${guildId}`, textChannel.id);
 
-          console.log(
-            `Setting text channel for guild ${guildId} to ${channel.id}`,
-          );
-          try {
-            await redis.set(`textChannel:${guildId}`, channel.id);
-            console.log("Successfully set text channel in Redis");
-          } catch (redisError) {
-            console.error(
-              "Redis error while setting text channel:",
-              redisError,
-            );
-            throw redisError;
-          }
-
-          console.log("Sending success reply...");
-          await interaction.reply({
-            content: `Set text channel to ${channel.name}`,
-            flags: MessageFlags.Ephemeral,
-          });
-          console.log("Text channel setup complete");
-          break;
-        }
-        case "voice": {
-          console.log("Processing voice channel setting...");
-          if (channel.type !== ChannelType.GuildVoice) {
-            console.warn(
-              `Invalid channel type for voice channel: ${channel.type}`,
-            );
-            await interaction.reply({
-              content: "Please select a voice channel.",
-              flags: MessageFlags.Ephemeral,
-            });
-            return;
-          }
-
-          console.log(
-            `Setting voice channel for guild ${guildId} to ${channel.id}`,
-          );
-          try {
-            await redis.set(`voiceChannel:${guildId}`, channel.id);
-            console.log("Successfully set voice channel in Redis");
-          } catch (redisError) {
-            console.error(
-              "Redis error while setting voice channel:",
-              redisError,
-            );
-            throw redisError;
-          }
-
-          console.log("Sending success reply...");
-          await interaction.reply({
-            content: `Set voice channel to ${channel.name}`,
-            flags: MessageFlags.Ephemeral,
-          });
-          console.log("Voice channel setup complete");
-          break;
-        }
-      }
+      await interaction.reply({
+        content: `Set voice channel to ${voiceChannel.name} and text channel to ${textChannel.name}`,
+        flags: MessageFlags.Ephemeral,
+      });
     } catch (error) {
       console.error("Error in setChannels command:", error);
-      const err = error as Error;
-      console.error("Error details:", {
-        name: err.name,
-        message: err.message,
-        stack: err.stack,
+      await interaction.reply({
+        content: "An error occurred while setting the channels.",
+        flags: MessageFlags.Ephemeral,
       });
-
-      try {
-        if (!interaction.replied) {
-          await interaction.reply({
-            content: "An error occurred while setting the channel.",
-            flags: MessageFlags.Ephemeral,
-          });
-        } else {
-          await interaction.followUp({
-            content: "An error occurred while setting the channel.",
-            flags: MessageFlags.Ephemeral,
-          });
-        }
-      } catch (replyError) {
-        console.error("Error while sending error reply:", replyError);
-      }
     }
   },
 };
 
-// Add a new command to check current channel settings
 export const checkChannelsCommand = {
   data: new SlashCommandBuilder()
     .setName("checkchannels")
@@ -183,10 +108,6 @@ export const checkChannelsCommand = {
       "Current channel settings:",
       `Voice Channel: ${voiceChannel?.type === ChannelType.GuildVoice ? voiceChannel.name : "Not set"}`,
       `Text Channel: ${textChannel?.type === ChannelType.GuildText ? textChannel.name : "Not set"}`,
-      "",
-      "Debug info:",
-      `Voice Channel ID: ${voiceChannelId || "Not set"}`,
-      `Text Channel ID: ${textChannelId || "Not set"}`,
     ].join("\n");
 
     await interaction.reply({

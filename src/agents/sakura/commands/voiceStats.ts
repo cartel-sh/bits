@@ -7,6 +7,12 @@ import {
   getWeeklyStats,
 } from "../voiceActivity";
 
+const formatDuration = (seconds: number): string => {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  return `${hours}h ${minutes}m`;
+};
+
 export const voiceStatsCommand = {
   data: new SlashCommandBuilder()
     .setName("voicestats")
@@ -35,60 +41,34 @@ export const voiceStatsCommand = {
     const userId = interaction.user.id;
 
     try {
+      let content = "";
       switch (subcommand) {
         case "daily": {
-          const dailyDuration = await getDailyStats(redis, userId);
-          const hours = Math.floor(dailyDuration / 3600);
-          const minutes = Math.floor((dailyDuration % 3600) / 60);
-
-          await interaction.reply({
-            content: `Today's voice activity: ${hours}h ${minutes}m`,
-            flags: MessageFlags.Ephemeral,
-          });
+          const duration = await getDailyStats(redis, userId);
+          content = `Today's voice activity: ${formatDuration(duration)}`;
           break;
         }
-
         case "weekly": {
-          const weeklyStats = await getWeeklyStats(redis, userId);
-          const formattedStats = Object.entries(weeklyStats)
-            .map(([date, duration]) => {
-              const hours = Math.floor(duration / 3600);
-              const minutes = Math.floor((duration % 3600) / 60);
-              return `${date}: ${hours}h ${minutes}m`;
-            })
-            .join("\n");
-
-          await interaction.reply({
-            content: `Your weekly voice activity:\n${formattedStats}`,
-            flags: MessageFlags.Ephemeral,
-          });
+          const stats = await getWeeklyStats(redis, userId);
+          content = `Weekly voice activity:\n${Object.entries(stats)
+            .map(([date, duration]) => `${date}: ${formatDuration(duration)}`)
+            .join("\n")}`;
           break;
         }
-
         case "monthly": {
-          const monthlyStats = await getMonthlyStats(redis, userId);
-          const formattedStats = Object.entries(monthlyStats)
-            .map(([date, duration]) => {
-              const hours = Math.floor(duration / 3600);
-              const minutes = Math.floor((duration % 3600) / 60);
-              return `${date}: ${hours}h ${minutes}m`;
-            })
-            .join("\n");
-
-          const totalDuration = Object.values(monthlyStats).reduce(
-            (sum, duration) => sum + duration,
-            0,
-          );
-          const totalHours = Math.floor(totalDuration / 3600);
-          const totalMinutes = Math.floor((totalDuration % 3600) / 60);
-
-          await interaction.reply({
-            content: `Your monthly voice activity:\nTotal: ${totalHours}h ${totalMinutes}m\n\nDaily breakdown:\n${formattedStats}`,
-            flags: MessageFlags.Ephemeral,
-          });
+          const stats = await getMonthlyStats(redis, userId);
+          const total = Object.values(stats).reduce((sum, d) => sum + d, 0);
+          content = `Monthly voice activity:\nTotal: ${formatDuration(total)}\n\nDaily breakdown:\n${Object.entries(stats)
+            .map(([date, duration]) => `${date}: ${formatDuration(duration)}`)
+            .join("\n")}`;
           break;
         }
       }
+
+      await interaction.reply({
+        content,
+        flags: MessageFlags.Ephemeral,
+      });
     } catch (error) {
       console.error("Error executing voice stats command:", error);
       await interaction.reply({

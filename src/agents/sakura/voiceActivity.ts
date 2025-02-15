@@ -2,63 +2,41 @@ import type { VoiceState } from "discord.js";
 import { DateTime } from "luxon";
 import type { RedisClientType } from "redis";
 
-export interface VoiceActivity {
-  userId: string;
-  startTime: string;
-  duration?: number;
-}
-
 export const trackVoiceStateChange = async (
   redis: RedisClientType,
   oldState: VoiceState,
   newState: VoiceState,
 ): Promise<void> => {
-  if (oldState.channelId !== newState.channelId) {
-    if (newState.channelId) {
-      await storeActivityStart(redis, newState.member?.user.id);
-    } else {
-      await storeActivityEnd(redis, oldState.member?.user.id);
+  if (oldState.channelId === newState.channelId) return;
+
+  const userId = oldState.member?.user.id || newState.member?.user.id;
+  if (!userId) return;
+
+  if (newState.channelId) {
+    const currentDay = DateTime.now().toFormat("yyyy-MM-dd");
+    await redis.set(`activity:${userId}`, new Date().toISOString());
+    await redis.sAdd(`activity:tracking:${currentDay}`, userId);
+  } else {
+    const activityStart = await redis.get(`activity:${userId}`);
+    if (activityStart) {
+      const duration = Math.floor(
+        (new Date().getTime() - new Date(activityStart).getTime()) / 1000,
+      );
+      const currentDay = DateTime.now().toFormat("yyyy-MM-dd");
+      const existingDuration = await redis.get(
+        `activity:${userId}:duration:${currentDay}`,
+      );
+      const totalDuration = existingDuration
+        ? Number.parseInt(existingDuration) + duration
+        : duration;
+
+      await redis.set(
+        `activity:${userId}:duration:${currentDay}`,
+        totalDuration.toString(),
+      );
+      await redis.del(`activity:${userId}`);
     }
   }
-};
-
-export const storeActivityStart = async (
-  redis: RedisClientType,
-  userId: string | undefined,
-): Promise<void> => {
-  if (!userId) {
-    return;
-  }
-
-  const activityStart = await redis.get(`activity:${userId}`);
-  if (activityStart) {
-    return;
-  }
-
-  await redis.set(`activity:${userId}`, new Date().toISOString());
-  await addUserToTrackingSet(redis, userId);
-};
-
-export const storeActivityEnd = async (
-  redis: RedisClientType,
-  userId: string | undefined,
-): Promise<number | null> => {
-  if (!userId) {
-    return null;
-  }
-
-  const activityStart = await redis.get(`activity:${userId}`);
-  if (!activityStart) {
-    return null;
-  }
-
-  const duration = calculateDuration(new Date(activityStart), new Date());
-  const currentDay = DateTime.now().toFormat("yyyy-MM-dd");
-
-  await updateDurationForDay(redis, userId, currentDay, duration);
-  await redis.del(`activity:${userId}`);
-
-  return duration;
 };
 
 export const getDailyStats = async (
@@ -101,36 +79,4 @@ export const getMonthlyStats = async (
   }
 
   return stats;
-};
-
-// Helper functions
-const calculateDuration = (startTime: Date, endTime: Date): number => {
-  return Math.floor((endTime.getTime() - startTime.getTime()) / 1000);
-};
-
-const updateDurationForDay = async (
-  redis: RedisClientType,
-  userId: string,
-  day: string,
-  newDuration: number,
-): Promise<void> => {
-  const existingDuration = await redis.get(
-    `activity:${userId}:duration:${day}`,
-  );
-  const totalDuration = existingDuration
-    ? Number.parseInt(existingDuration) + newDuration
-    : newDuration;
-
-  await redis.set(
-    `activity:${userId}:duration:${day}`,
-    totalDuration.toString(),
-  );
-};
-
-const addUserToTrackingSet = async (
-  redis: RedisClientType,
-  userId: string,
-): Promise<void> => {
-  const currentDay = DateTime.now().toFormat("yyyy-MM-dd");
-  await redis.sAdd(`activity:tracking:${currentDay}`, userId);
 };
