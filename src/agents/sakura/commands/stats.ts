@@ -1,11 +1,10 @@
 import { SlashCommandBuilder } from "@discordjs/builders";
 import { type ChatInputCommandInteraction, MessageFlags } from "discord.js";
-import type { RedisClientType } from "redis";
 import {
   getDailyStats,
   getMonthlyStats,
   getWeeklyStats,
-} from "../voiceActivity";
+} from "../database/db";
 
 const formatDuration = (seconds: number): string => {
   const hours = Math.floor(seconds / 3600);
@@ -13,30 +12,27 @@ const formatDuration = (seconds: number): string => {
   return `${hours}h ${minutes}m`;
 };
 
-export const voiceStatsCommand = {
+export const statsCommand = {
   data: new SlashCommandBuilder()
-    .setName("voicestats")
-    .setDescription("Get your voice channel activity statistics")
+    .setName("stats")
+    .setDescription("Get your practice statistics")
     .addSubcommand((subcommand) =>
       subcommand
         .setName("daily")
-        .setDescription("Get your daily voice activity stats"),
+        .setDescription("Get your daily practice stats"),
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName("weekly")
-        .setDescription("Get your weekly voice activity stats"),
+        .setDescription("Get your weekly practice stats"),
     )
     .addSubcommand((subcommand) =>
       subcommand
         .setName("monthly")
-        .setDescription("Get your monthly voice activity stats"),
+        .setDescription("Get your monthly practice stats"),
     ),
 
-  execute: async (
-    interaction: ChatInputCommandInteraction,
-    redis: RedisClientType,
-  ) => {
+  execute: async (interaction: ChatInputCommandInteraction) => {
     const subcommand = interaction.options.getSubcommand();
     const userId = interaction.user.id;
 
@@ -44,21 +40,21 @@ export const voiceStatsCommand = {
       let content = "";
       switch (subcommand) {
         case "daily": {
-          const duration = await getDailyStats(redis, userId);
-          content = `Today's voice activity: ${formatDuration(duration)}`;
+          const duration = await getDailyStats(userId);
+          content = `Today's practice duration: ${formatDuration(duration)}`;
           break;
         }
         case "weekly": {
-          const stats = await getWeeklyStats(redis, userId);
-          content = `Weekly voice activity:\n${Object.entries(stats)
+          const stats = await getWeeklyStats(userId);
+          content = `Weekly practice summary:\n${Object.entries(stats)
             .map(([date, duration]) => `${date}: ${formatDuration(duration)}`)
             .join("\n")}`;
           break;
         }
         case "monthly": {
-          const stats = await getMonthlyStats(redis, userId);
+          const stats = await getMonthlyStats(userId);
           const total = Object.values(stats).reduce((sum, d) => sum + d, 0);
-          content = `Monthly voice activity:\nTotal: ${formatDuration(total)}\n\nDaily breakdown:\n${Object.entries(stats)
+          content = `Monthly practice summary:\nTotal: ${formatDuration(total)}\n\nDaily breakdown:\n${Object.entries(stats)
             .map(([date, duration]) => `${date}: ${formatDuration(duration)}`)
             .join("\n")}`;
           break;
@@ -70,7 +66,7 @@ export const voiceStatsCommand = {
         flags: MessageFlags.Ephemeral,
       });
     } catch (error) {
-      console.error("Error executing voice stats command:", error);
+      console.error("Error executing stats command:", error);
       await interaction.reply({
         content: "An error occurred while processing your request.",
         flags: MessageFlags.Ephemeral,

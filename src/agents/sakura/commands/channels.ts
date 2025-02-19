@@ -4,8 +4,7 @@ import {
   type ChatInputCommandInteraction,
   MessageFlags,
 } from "discord.js";
-import type { RedisClientType } from "redis";
-
+import { setChannels, getChannels } from "../database/db";
 
 export const setChannelsCommand = {
   data: new SlashCommandBuilder()
@@ -24,10 +23,7 @@ export const setChannelsCommand = {
         .setRequired(true),
     ),
 
-  execute: async (
-    interaction: ChatInputCommandInteraction,
-    redis: RedisClientType,
-  ) => {
+  execute: async (interaction: ChatInputCommandInteraction) => {
     console.log("Executing setchannel command...");
 
     const guildId = interaction.guildId;
@@ -59,8 +55,11 @@ export const setChannelsCommand = {
     }
 
     try {
-      await redis.set(`voiceChannel:${guildId}`, voiceChannel.id);
-      await redis.set(`textChannel:${guildId}`, textChannel.id);
+      await setChannels({
+        guildId,
+        voiceChannelId: voiceChannel.id,
+        textChannelId: textChannel.id,
+      });
 
       await interaction.reply({
         content: `Set voice channel to ${voiceChannel.name} and text channel to ${textChannel.name}`,
@@ -80,10 +79,7 @@ export const checkChannelsCommand = {
   data: new SlashCommandBuilder()
     .setName("checkchannels")
     .setDescription("Check the current voice and text channel settings"),
-  async execute(
-    interaction: ChatInputCommandInteraction,
-    redis: RedisClientType,
-  ) {
+  async execute(interaction: ChatInputCommandInteraction) {
     if (!interaction.guildId) {
       await interaction.reply({
         content: "This command can only be used in a server.",
@@ -92,17 +88,18 @@ export const checkChannelsCommand = {
       return;
     }
 
-    const voiceChannelId = await redis.get(
-      `voiceChannel:${interaction.guildId}`,
-    );
-    const textChannelId = await redis.get(`textChannel:${interaction.guildId}`);
+    const settings = await getChannels(interaction.guildId);
 
-    const voiceChannel = voiceChannelId
-      ? await interaction.client.channels.fetch(voiceChannelId)
-      : null;
-    const textChannel = textChannelId
-      ? await interaction.client.channels.fetch(textChannelId)
-      : null;
+    if (!settings) {
+      await interaction.reply({
+        content: "No channels have been set up for this server.",
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
+    const voiceChannel = await interaction.client.channels.fetch(settings.voiceChannelId);
+    const textChannel = await interaction.client.channels.fetch(settings.textChannelId);
 
     const response = [
       "Current channel settings:",
