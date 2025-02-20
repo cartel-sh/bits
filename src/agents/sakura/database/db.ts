@@ -27,6 +27,8 @@ export interface VanishingChannel {
   channel_id: string;
   guild_id: string;
   vanish_after: number;  // in seconds
+  messages_deleted: number;
+  last_deletion: Date | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -284,4 +286,16 @@ export const getVanishingChannel = async (channelId: string): Promise<VanishingC
     WHERE channel_id = ${channelId}
   `;
   return result[0] || null;
+};
+
+export const updateVanishingChannelStats = async (channelId: string, deletedCount: number): Promise<void> => {
+  await checkDbConnection();
+  await sql`
+    UPDATE vanishing_channels
+    SET 
+      messages_deleted = messages_deleted + ${deletedCount},
+      last_deletion = CURRENT_TIMESTAMP,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE channel_id = ${channelId}
+  `;
 }; 

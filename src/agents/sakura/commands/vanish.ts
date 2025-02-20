@@ -1,6 +1,7 @@
 import { SlashCommandBuilder } from "@discordjs/builders";
-import { type ChatInputCommandInteraction, MessageFlags, PermissionFlagsBits, PermissionsBitField } from "discord.js";
+import { type ChatInputCommandInteraction, MessageFlags, PermissionFlagsBits } from "discord.js";
 import { setVanishingChannel, removeVanishingChannel, getVanishingChannel } from "../database/db";
+import { DateTime } from "luxon";
 
 const parseDuration = (duration: string): number | null => {
   const match = duration.match(/^(\d+)(d|h|m|s)$/);
@@ -16,6 +17,22 @@ const parseDuration = (duration: string): number | null => {
     case 's': return value;
     default: return null;
   }
+};
+
+const formatDuration = (seconds: number): string => {
+  if (seconds >= 86400) {
+    return `${Math.floor(seconds / 86400)} days`;
+  } else if (seconds >= 3600) {
+    return `${Math.floor(seconds / 3600)} hours`;
+  } else if (seconds >= 60) {
+    return `${Math.floor(seconds / 60)} minutes`;
+  }
+  return `${seconds} seconds`;
+};
+
+const formatTimestamp = (date: Date | null): string => {
+  if (!date) return 'Never';
+  return DateTime.fromJSDate(date).toRelative() || 'Unknown';
 };
 
 export const vanishCommand = {
@@ -93,22 +110,20 @@ export const vanishCommand = {
             return;
           }
 
-          let duration = config.vanish_after;
-          let unit = "seconds";
+          const duration = formatDuration(config.vanish_after);
+          const lastDeletion = formatTimestamp(config.last_deletion);
+          const messagesDeleted = config.messages_deleted.toLocaleString();
 
-          if (duration >= 86400) {
-            duration = Math.floor(duration / 86400);
-            unit = "days";
-          } else if (duration >= 3600) {
-            duration = Math.floor(duration / 3600);
-            unit = "hours";
-          } else if (duration >= 60) {
-            duration = Math.floor(duration / 60);
-            unit = "minutes";
-          }
+          const status = [
+            `**Auto-Deletion Status**`,
+            `• Messages older than ${duration} will be deleted`,
+            `• Total messages deleted: ${messagesDeleted}`,
+            `• Last deletion: ${lastDeletion}`,
+            `• Active since: ${formatTimestamp(config.created_at)}`,
+          ].join('\n');
 
           await interaction.reply({
-            content: `Messages in this channel are automatically deleted after ${duration} ${unit}`,
+            content: status,
           });
           break;
         }

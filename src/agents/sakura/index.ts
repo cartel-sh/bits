@@ -11,7 +11,7 @@ import { startCommand, stopCommand } from "./commands/session";
 import { statsCommand } from "./commands/stats";
 import { vanishCommand } from "./commands/vanish";
 import { initializeDatabase, cleanup } from "./database/connection";
-import { getVanishingChannels } from "./database/db";
+import { getVanishingChannels, updateVanishingChannelStats } from "./database/db";
 
 const { SAKURA_TOKEN, SAKURA_CLIENT_ID } = process.env;
 if (!SAKURA_TOKEN || !SAKURA_CLIENT_ID) {
@@ -35,18 +35,24 @@ const commands = [
 const deleteOldMessages = async () => {
   try {
     const channels = await getVanishingChannels();
+    console.log(`[VANISH] Checking ${channels.length} channels for old messages`);
     
     for (const config of channels) {
       try {
         const channel = await client.channels.fetch(config.channel_id);
         if (!(channel instanceof TextChannel)) {
-          console.log(`Channel ${config.channel_id} is not a text channel, skipping`);
+          console.log(`[VANISH] Channel ${config.channel_id} is not a text channel, skipping`);
           continue;
         }
+
+        console.log(`[VANISH] Processing channel: ${channel.name} (${channel.id}), vanish after: ${config.vanish_after}s`);
 
         // Fetch messages in batches of 100 until we find messages that are young enough
         let lastId: string | undefined;
         let shouldContinue = true;
+        let totalProcessed = 0;
+        let totalDeleted = 0;
+        let totalErrors = 0;
 
         while (shouldContinue) {
           const options: { limit: number; before?: string } = { limit: 100 };
@@ -55,6 +61,7 @@ const deleteOldMessages = async () => {
           const messages = await channel.messages.fetch(options);
           if (messages.size === 0) break;
 
+          totalProcessed += messages.size;
           const now = Date.now();
           const oldMessages = messages.filter(msg => 
             !msg.pinned && // Don't delete pinned messages
@@ -62,22 +69,52 @@ const deleteOldMessages = async () => {
           );
 
           if (oldMessages.size > 0) {
-            console.log(`Deleting ${oldMessages.size} messages from channel ${channel.name} (${channel.id})`);
+            console.log(`[VANISH] Found ${oldMessages.size} old messages in ${channel.name}`);
+            
             try {
               await channel.bulkDelete(oldMessages);
+              totalDeleted += oldMessages.size;
+              console.log(`[VANISH] Bulk deleted ${oldMessages.size} messages from ${channel.name}`);
             } catch (deleteError) {
-              // If bulk delete fails (messages > 14 days old), delete one by one
+              // Handle messages older than 14 days
               if (deleteError instanceof Error && deleteError.message.includes('14 days')) {
-                console.log('Messages too old for bulk delete, deleting individually...');
-                for (const [_, message] of oldMessages) {
+                console.log(`[VANISH] Messages too old for bulk delete in ${channel.name}, deleting individually...`);
+                
+                for (const [messageId, message] of oldMessages) {
                   try {
                     await message.delete();
-                  } catch (singleDeleteError) {
-                    console.error(`Failed to delete message ${message.id}:`, singleDeleteError);
+                    totalDeleted++;
+                    
+                    // Add a small delay to avoid rate limits
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                  } catch (singleDeleteError: any) {
+                    totalErrors++;
+                    // Handle specific Discord API errors
+                    if (singleDeleteError.code === '10008') { // Unknown Message
+                      console.log(`[VANISH] Message ${messageId} already deleted or inaccessible`);
+                    } else if (singleDeleteError.code === '50013') { // Missing Permissions
+                      console.error(`[VANISH] Missing permissions to delete messages in ${channel.name}`);
+                      shouldContinue = false;
+                      break;
+                    } else if (singleDeleteError.code === '429') { // Rate Limited
+                      console.log(`[VANISH] Rate limited, waiting longer between deletions`);
+                      await new Promise(resolve => setTimeout(resolve, 5000));
+                    } else {
+                      console.error(`[VANISH] Error deleting message ${messageId}:`, {
+                        error: singleDeleteError.message,
+                        code: singleDeleteError.code,
+                        channel: channel.name,
+                        channelId: channel.id
+                      });
+                    }
                   }
                 }
+              } else if (deleteError instanceof Error && deleteError.message.includes('Missing Permissions')) {
+                console.error(`[VANISH] Missing permissions to delete messages in ${channel.name}`);
+                shouldContinue = false;
               } else {
-                throw deleteError;
+                console.error(`[VANISH] Unexpected error during bulk delete in ${channel.name}:`, deleteError);
+                totalErrors++;
               }
             }
           }
@@ -91,13 +128,35 @@ const deleteOldMessages = async () => {
             shouldContinue = false;
           }
         }
-      } catch (channelError) {
-        console.error(`Error processing channel ${config.channel_id}:`, channelError);
-        // Continue with next channel
+
+        // Update deletion stats if any messages were deleted
+        if (totalDeleted > 0) {
+          try {
+            await updateVanishingChannelStats(channel.id, totalDeleted);
+          } catch (error) {
+            console.error(`[VANISH] Failed to update deletion stats for ${channel.name}:`, error);
+          }
+        }
+
+        console.log(`[VANISH] Channel ${channel.name} summary:`, {
+          processed: totalProcessed,
+          deleted: totalDeleted,
+          errors: totalErrors
+        });
+
+      } catch (channelError: any) {
+        if (channelError.code === '10003') { // Unknown Channel
+          console.log(`[VANISH] Channel ${config.channel_id} no longer exists, skipping`);
+        } else {
+          console.error(`[VANISH] Error processing channel ${config.channel_id}:`, {
+            error: channelError.message,
+            code: channelError.code
+          });
+        }
       }
     }
   } catch (error) {
-    console.error("Error in message deletion routine:", error);
+    console.error("[VANISH] Error in message deletion routine:", error);
   }
 };
 

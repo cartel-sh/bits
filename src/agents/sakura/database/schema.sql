@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS vanishing_channels (
     channel_id TEXT PRIMARY KEY,
     guild_id TEXT NOT NULL,
     vanish_after INTEGER NOT NULL, -- duration in seconds
+    messages_deleted BIGINT DEFAULT 0, -- total messages deleted
+    last_deletion TIMESTAMP WITH TIME ZONE, -- timestamp of last deletion
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
