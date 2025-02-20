@@ -1,92 +1,5 @@
-import postgres from "postgres";
 import { DateTime } from "luxon";
-
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL is not set");
-}
-
-console.log("Attempting to connect to database...");
-
-let dbConnected = false;
-let connectionError: Error | null = null;
-let connectionReadyPromise: Promise<void>;
-
-const sql = postgres(process.env.DATABASE_URL, {
-  ssl: false,
-  connect_timeout: 10,
-  idle_timeout: 20,
-  max_lifetime: 60 * 30,
-  connection: {
-    application_name: 'sakura_bot'
-  },
-  onnotice: (notice) => {
-    console.log('[DB NOTICE]', notice);
-  },
-  transform: {
-    undefined: null,
-  },
-  debug: (connection_id, query) => {
-    console.log(`[DB DEBUG] Connection ${connection_id} executing:`, query.split('\n')[0]);
-  }
-});
-
-// Initialize connection with promise
-connectionReadyPromise = new Promise((resolve, reject) => {
-  const tryConnect = async () => {
-    try {
-      await sql`SELECT 1`;
-      console.log('[DB] Initial connection successful');
-      dbConnected = true;
-      connectionError = null;
-      resolve();
-    } catch (err) {
-      console.error('[DB] Initial connection failed:', err);
-      dbConnected = false;
-      connectionError = err instanceof Error ? err : new Error(String(err));
-      setTimeout(tryConnect, 5000);
-    }
-  };
-  
-  tryConnect();
-});
-
-// Monitor connection health
-const monitorConnection = async () => {
-  try {
-    await sql`SELECT 1`;
-    if (!dbConnected) {
-      console.log('[DB] Connection re-established');
-      dbConnected = true;
-      connectionError = null;
-    }
-  } catch (err) {
-    if (dbConnected) {
-      console.error('[DB] Connection lost:', err);
-      dbConnected = false;
-      connectionError = err instanceof Error ? err : new Error(String(err));
-    }
-  }
-};
-
-// Start monitoring after initial connection
-connectionReadyPromise.then(() => {
-  setInterval(monitorConnection, 30000);
-}).catch(err => {
-  console.error("Failed to establish initial database connection:", err);
-});
-
-const checkDbConnection = async () => {
-  await connectionReadyPromise;
-  if (!dbConnected) {
-    const error = new Error(
-      connectionError 
-        ? `Database connection failed: ${connectionError.message}` 
-        : "Database connection is not established"
-    );
-    console.error("[DB] Connection check failed:", error);
-    throw error;
-  }
-};
+import { sql, checkDbConnection } from "./connection";
 
 export interface PracticeSession {
   id: string;
@@ -169,7 +82,6 @@ export const startSession = async (discordId: string, notes?: string): Promise<P
       RETURNING *
     `;
 
-
     console.log(`[DB] Session created successfully in ${Date.now() - start}ms`);
     return result[0];
   } catch (error) {
@@ -185,29 +97,39 @@ export const stopSession = async (discordId: string): Promise<PracticeSession> =
   console.log(`[DB] Stopping session for Discord ID: ${discordId}`);
   const start = Date.now();
   
-  const userId = await getUserByDiscordId(discordId);
+  try {
+    await checkDbConnection();
+    const userId = await getUserByDiscordId(discordId);
 
-  console.log(`[DB] Updating session for user ${userId}`);
-  const result = await sql<[PracticeSession]>`
-    UPDATE practice_sessions 
-    SET 
-      end_time = CURRENT_TIMESTAMP,
-      duration = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - start_time))::INTEGER
-    WHERE user_id = ${userId}
-      AND end_time IS NULL
-    RETURNING *
-  `;
+    console.log(`[DB] Updating session for user ${userId}`);
+    const result = await sql<[PracticeSession]>`
+      UPDATE practice_sessions 
+      SET 
+        end_time = CURRENT_TIMESTAMP,
+        duration = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - start_time))::INTEGER
+      WHERE user_id = ${userId}
+        AND end_time IS NULL
+      RETURNING *
+    `;
 
-  if (!result[0]) {
-    console.log(`[DB] No active session found for user ${userId}`);
-    throw new Error("No active practice session found");
+    if (!result[0]) {
+      console.log(`[DB] No active session found for user ${userId}`);
+      throw new Error("No active practice session found");
+    }
+
+    console.log(`[DB] Session stopped successfully in ${Date.now() - start}ms`);
+    return result[0];
+  } catch (error) {
+    console.error(`[DB] Error in stopSession for ${discordId}:`, error);
+    if (error instanceof Error) {
+      console.error(`[DB] Stack trace:`, error.stack);
+    }
+    throw error;
   }
-
-  console.log(`[DB] Session stopped successfully in ${Date.now() - start}ms`);
-  return result[0];
 };
 
 export const getDailyStats = async (discordId: string): Promise<number> => {
+  await checkDbConnection();
   const userId = await getUserByDiscordId(discordId);
   const date = DateTime.now().toFormat("yyyy-MM-dd");
   
@@ -220,6 +142,7 @@ export const getDailyStats = async (discordId: string): Promise<number> => {
 };
 
 export const getWeeklyStats = async (discordId: string): Promise<Record<string, number>> => {
+  await checkDbConnection();
   const userId = await getUserByDiscordId(discordId);
   const endDate = DateTime.now();
   const startDate = endDate.minus({ days: 6 });
@@ -244,6 +167,7 @@ export const getWeeklyStats = async (discordId: string): Promise<Record<string, 
 };
 
 export const getMonthlyStats = async (discordId: string): Promise<Record<string, number>> => {
+  await checkDbConnection();
   const userId = await getUserByDiscordId(discordId);
   const now = DateTime.now();
   const startDate = now.startOf("month");
@@ -269,6 +193,7 @@ export const getMonthlyStats = async (discordId: string): Promise<Record<string,
 };
 
 export const setChannels = async (settings: ChannelSettings) => {
+  await checkDbConnection();
   await sql`
     INSERT INTO channel_settings (guild_id, voice_channel_id, text_channel_id)
     VALUES (${settings.guildId}, ${settings.voiceChannelId}, ${settings.textChannelId})
@@ -280,6 +205,7 @@ export const setChannels = async (settings: ChannelSettings) => {
 };
 
 export const getChannels = async (guildId: string): Promise<ChannelSettings | null> => {
+  await checkDbConnection();
   const result = await sql<[ChannelSettings]>`
     SELECT 
       guild_id as "guildId", 

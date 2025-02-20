@@ -6,25 +6,15 @@ import {
   MessageFlags,
 } from "discord.js";
 import { startCommand, stopCommand } from "./commands/session";
-import postgres from "postgres";
-import { readFileSync } from "fs";
-import { join } from "path";
 import { statsCommand } from "./commands/stats";
+import { initializeDatabase, cleanup } from "./database/connection";
 
-const { SAKURA_TOKEN, SAKURA_CLIENT_ID, DATABASE_URL } = process.env;
+const { SAKURA_TOKEN, SAKURA_CLIENT_ID } = process.env;
 if (!SAKURA_TOKEN || !SAKURA_CLIENT_ID) {
   throw new Error(
     "Environment variables SAKURA_TOKEN and SAKURA_CLIENT_ID must be set.",
   );
 }
-
-if (!DATABASE_URL) {
-  throw new Error("DATABASE_URL is not set.");
-}
-
-const sql = postgres(DATABASE_URL, {
-  ssl: false
-});
 
 const client = new Client({
   intents: ["Guilds", "GuildMessages", "MessageContent"],
@@ -35,19 +25,6 @@ const commands = [
   stopCommand.data.toJSON(),
   statsCommand.data.toJSON(),
 ];
-
-const initializeDatabase = async () => {
-  try {
-    // Read and execute schema.sql
-    const schemaPath = join(__dirname, "database/schema.sql");
-    const schema = readFileSync(schemaPath, "utf-8");
-    await sql.unsafe(schema);
-    console.log("Database schema initialized successfully");
-  } catch (error) {
-    console.error("Error initializing database schema:", error);
-    throw error;
-  }
-};
 
 const startBot = async () => {
   try {
@@ -95,12 +72,6 @@ client.on("interactionCreate", async (interaction: Interaction) => {
 client.once("ready", () => console.log("Sakura is ready!"));
 
 // Handle process termination
-const cleanup = async () => {
-  console.log("Cleaning up...");
-  await sql.end();
-  process.exit(0);
-};
-
 process.on("SIGINT", cleanup);
 process.on("SIGTERM", cleanup);
 
