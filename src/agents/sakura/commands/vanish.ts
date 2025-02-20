@@ -112,7 +112,7 @@ export const vanishCommand = {
 
           const duration = formatDuration(config.vanish_after);
           const lastDeletion = formatTimestamp(config.last_deletion);
-          const messagesDeleted = config.messages_deleted.toLocaleString();
+          const messagesDeleted = (config.messages_deleted || 0).toLocaleString();
 
           const status = [
             `**Auto-Deletion Status**`,
