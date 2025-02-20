@@ -7,6 +7,9 @@ if (!process.env.DATABASE_URL) {
 
 console.log("Attempting to connect to database...");
 
+let dbConnected = false;
+let connectionError: Error | null = null;
+
 const sql = postgres(process.env.DATABASE_URL, {
   ssl: process.env.NODE_ENV === "production",
   connect_timeout: 10,
@@ -26,25 +29,39 @@ const sql = postgres(process.env.DATABASE_URL, {
   }
 });
 
-let dbConnected = false;
+const initializeConnection = async () => {
+  try {
+    await sql`SELECT 1`;
+    console.log('[DB] Initial connection successful');
+    dbConnected = true;
+    connectionError = null;
+  } catch (err) {
+    console.error('[DB] Initial connection failed:', err);
+    dbConnected = false;
+    connectionError = err instanceof Error ? err : new Error(String(err));
+    setTimeout(initializeConnection, 5000);
+  }
+};
 
 const monitorConnection = async () => {
   try {
     await sql`SELECT 1`;
     if (!dbConnected) {
-      console.log('[DB] Connection established');
+      console.log('[DB] Connection re-established');
       dbConnected = true;
+      connectionError = null;
     }
   } catch (err) {
     if (dbConnected) {
       console.error('[DB] Connection lost:', err);
       dbConnected = false;
+      connectionError = err instanceof Error ? err : new Error(String(err));
     }
   }
 };
 
-monitorConnection().catch(err => {
-  console.error("Failed to connect to database:", err);
+initializeConnection().catch(err => {
+  console.error("Failed to establish initial database connection:", err);
   console.error("Error details:", {
     code: err.code,
     message: err.message,
@@ -56,7 +73,11 @@ setInterval(monitorConnection, 30000);
 
 const checkDbConnection = () => {
   if (!dbConnected) {
-    const error = new Error("Database connection is not established");
+    const error = new Error(
+      connectionError 
+        ? `Database connection failed: ${connectionError.message}` 
+        : "Database connection is not established"
+    );
     console.error("[DB] Connection check failed:", error);
     throw error;
   }
