@@ -31,7 +31,6 @@ export interface UserIdentity {
   identity: string;
 }
 
-// User management functions
 export const getUserByDiscordId = async (discordId: string): Promise<string> => {
   const result = await sql<[{ id: string }]>`
     SELECT get_or_create_user_by_identity('discord', ${discordId}) as id
@@ -46,12 +45,10 @@ export const linkIdentity = async (userId: string, platform: string, identity: s
   `;
 };
 
-// Practice session management
 export const startSession = async (discordId: string, notes?: string): Promise<PracticeSession> => {
   const userId = await getUserByDiscordId(discordId);
   const date = DateTime.now().toFormat("yyyy-MM-dd");
 
-  // Check if there's already an active session
   const activeSession = await sql<PracticeSession[]>`
     SELECT * FROM practice_sessions
     WHERE user_id = ${userId}
@@ -161,7 +158,6 @@ export const getMonthlyStats = async (discordId: string): Promise<Record<string,
   return stats;
 };
 
-// Channel settings functions
 export const setChannels = async (settings: ChannelSettings) => {
   await sql`
     INSERT INTO channel_settings (guild_id, voice_channel_id, text_channel_id)

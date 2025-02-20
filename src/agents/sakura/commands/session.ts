@@ -1,6 +1,7 @@
 import { SlashCommandBuilder } from "@discordjs/builders";
 import { type ChatInputCommandInteraction, MessageFlags } from "discord.js";
 import { startSession, stopSession } from "../database/db";
+import { DateTime } from "luxon";
 
 const formatDuration = (seconds: number): string => {
   const hours = Math.floor(seconds / 3600);
@@ -25,7 +26,7 @@ export const startCommand = {
       const session = await startSession(interaction.user.id, notes);
 
       await interaction.reply({
-        content: `Started practice session at ${new Date(session.startTime).toLocaleTimeString()}`,
+        content: `Started your practice session!`,
         flags: MessageFlags.Ephemeral,
       });
     } catch (error) {
