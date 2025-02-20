@@ -1,5 +1,5 @@
 import { SlashCommandBuilder } from "@discordjs/builders";
-import { type ChatInputCommandInteraction, MessageFlags, PermissionFlagsBits } from "discord.js";
+import { type ChatInputCommandInteraction, MessageFlags, PermissionFlagsBits, PermissionsBitField } from "discord.js";
 import { setVanishingChannel, removeVanishingChannel, getVanishingChannel } from "../database/db";
 
 const parseDuration = (duration: string): number | null => {
@@ -22,7 +22,7 @@ export const vanishCommand = {
   data: new SlashCommandBuilder()
     .setName("vanish")
     .setDescription("Configure message auto-deletion for this channel")
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
+    .setDefaultMemberPermissions(PermissionsBitField.Flags.ManageMessages)
     .addSubcommand(subcommand =>
       subcommand
         .setName("set")
