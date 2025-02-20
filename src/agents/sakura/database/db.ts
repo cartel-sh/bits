@@ -14,15 +14,53 @@ const sql = postgres(process.env.DATABASE_URL, {
   max_lifetime: 60 * 30,
   connection: {
     application_name: 'sakura_bot'
+  },
+  onnotice: (notice) => {
+    console.log('[DB NOTICE]', notice);
+  },
+  transform: {
+    undefined: null,
+  },
+  debug: (connection_id, query) => {
+    console.log(`[DB DEBUG] Connection ${connection_id} executing:`, query.split('\n')[0]);
   }
 });
 
-// Test the connection
-sql`SELECT 1`.then(() => {
-  console.log("Successfully connected to database");
-}).catch(err => {
+let dbConnected = false;
+
+const monitorConnection = async () => {
+  try {
+    await sql`SELECT 1`;
+    if (!dbConnected) {
+      console.log('[DB] Connection established');
+      dbConnected = true;
+    }
+  } catch (err) {
+    if (dbConnected) {
+      console.error('[DB] Connection lost:', err);
+      dbConnected = false;
+    }
+  }
+};
+
+monitorConnection().catch(err => {
   console.error("Failed to connect to database:", err);
+  console.error("Error details:", {
+    code: err.code,
+    message: err.message,
+    stack: err.stack
+  });
 });
+
+setInterval(monitorConnection, 30000);
+
+const checkDbConnection = () => {
+  if (!dbConnected) {
+    const error = new Error("Database connection is not established");
+    console.error("[DB] Connection check failed:", error);
+    throw error;
+  }
+};
 
 export interface PracticeSession {
   id: string;
@@ -50,50 +88,71 @@ export const getUserByDiscordId = async (discordId: string): Promise<string> => 
   console.log(`[DB] Getting or creating user for Discord ID: ${discordId}`);
   const start = Date.now();
   
-  const result = await sql<[{ id: string }]>`
-    SELECT get_or_create_user_by_identity('discord', ${discordId}) as id
-  `;
-  console.log(`[DB] User lookup completed in ${Date.now() - start}ms`);
-  return result[0].id;
+  try {
+    checkDbConnection();
+    const result = await sql<[{ id: string }]>`
+      SELECT get_or_create_user_by_identity('discord', ${discordId}) as id
+    `;
+    console.log(`[DB] User lookup completed in ${Date.now() - start}ms`);
+    return result[0].id;
+  } catch (error) {
+    console.error(`[DB] Error in getUserByDiscordId for ${discordId}:`, error);
+    if (error instanceof Error) {
+      console.error(`[DB] Stack trace:`, error.stack);
+    }
+    throw error;
+  }
 };
 
 export const startSession = async (discordId: string, notes?: string): Promise<PracticeSession> => {
   console.log(`[DB] Starting new session for Discord ID: ${discordId}`);
   const start = Date.now();
   
-  const userId = await getUserByDiscordId(discordId);
-  const date = DateTime.now().toFormat("yyyy-MM-dd");
+  try {
+    checkDbConnection();
+    const userId = await getUserByDiscordId(discordId);
+    console.log(`[DB] Retrieved userId: ${userId}`);
+    
+    const date = DateTime.now().toFormat("yyyy-MM-dd");
+    console.log(`[DB] Checking for active sessions for user ${userId}`);
+    
+    const activeSession = await sql<PracticeSession[]>`
+      SELECT * FROM practice_sessions
+      WHERE user_id = ${userId}
+        AND end_time IS NULL
+    `;
 
-  console.log(`[DB] Checking for active sessions for user ${userId}`);
-  const activeSession = await sql<PracticeSession[]>`
-    SELECT * FROM practice_sessions
-    WHERE user_id = ${userId}
-      AND end_time IS NULL
-  `;
+    if (activeSession.length > 0) {
+      console.log(`[DB] Found existing active session for user ${userId}`);
+      throw new Error("You already have an active practice session");
+    }
 
-  if (activeSession.length > 0) {
-    console.log(`[DB] Found existing active session for user ${userId}`);
-    throw new Error("You already have an active practice session");
+    console.log(`[DB] Creating new session for user ${userId}`);
+    const result = await sql<[PracticeSession]>`
+      INSERT INTO practice_sessions (
+        user_id,
+        start_time,
+        date,
+        notes
+      ) VALUES (
+        ${userId},
+        CURRENT_TIMESTAMP,
+        ${date},
+        ${notes || null}
+      )
+      RETURNING *
+    `;
+
+
+    console.log(`[DB] Session created successfully in ${Date.now() - start}ms`);
+    return result[0];
+  } catch (error) {
+    console.error(`[DB] Error in startSession for ${discordId}:`, error);
+    if (error instanceof Error) {
+      console.error(`[DB] Stack trace:`, error.stack);
+    }
+    throw error;
   }
-
-  console.log(`[DB] Creating new session for user ${userId}`);
-  const result = await sql<[PracticeSession]>`
-    INSERT INTO practice_sessions (
-      user_id,
-      start_time,
-      date,
-      notes
-    ) VALUES (
-      ${userId},
-      CURRENT_TIMESTAMP,
-      ${date},
-      ${notes || null}
-    )
-    RETURNING *
-  `;
-
-  console.log(`[DB] Session created successfully in ${Date.now() - start}ms`);
-  return result[0];
 };
 
 export const stopSession = async (discordId: string): Promise<PracticeSession> => {
