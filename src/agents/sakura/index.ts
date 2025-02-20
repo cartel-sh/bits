@@ -37,19 +37,63 @@ const deleteOldMessages = async () => {
     const channels = await getVanishingChannels();
     
     for (const config of channels) {
-      const channel = await client.channels.fetch(config.channel_id);
-      if (!(channel instanceof TextChannel)) continue;
+      try {
+        const channel = await client.channels.fetch(config.channel_id);
+        if (!(channel instanceof TextChannel)) {
+          console.log(`Channel ${config.channel_id} is not a text channel, skipping`);
+          continue;
+        }
 
-      const messages = await channel.messages.fetch({ limit: 100 });
-      const now = Date.now();
-      
-      const oldMessages = messages.filter(msg => 
-        (now - msg.createdTimestamp) / 1000 > config.vanish_after
-      );
+        // Fetch messages in batches of 100 until we find messages that are young enough
+        let lastId: string | undefined;
+        let shouldContinue = true;
 
-      if (oldMessages.size > 0) {
-        console.log(`Deleting ${oldMessages.size} messages from channel ${channel.name}`);
-        await channel.bulkDelete(oldMessages);
+        while (shouldContinue) {
+          const options: { limit: number; before?: string } = { limit: 100 };
+          if (lastId) options.before = lastId;
+
+          const messages = await channel.messages.fetch(options);
+          if (messages.size === 0) break;
+
+          const now = Date.now();
+          const oldMessages = messages.filter(msg => 
+            !msg.pinned && // Don't delete pinned messages
+            (now - msg.createdTimestamp) / 1000 > config.vanish_after
+          );
+
+          if (oldMessages.size > 0) {
+            console.log(`Deleting ${oldMessages.size} messages from channel ${channel.name} (${channel.id})`);
+            try {
+              await channel.bulkDelete(oldMessages);
+            } catch (deleteError) {
+              // If bulk delete fails (messages > 14 days old), delete one by one
+              if (deleteError instanceof Error && deleteError.message.includes('14 days')) {
+                console.log('Messages too old for bulk delete, deleting individually...');
+                for (const [_, message] of oldMessages) {
+                  try {
+                    await message.delete();
+                  } catch (singleDeleteError) {
+                    console.error(`Failed to delete message ${message.id}:`, singleDeleteError);
+                  }
+                }
+              } else {
+                throw deleteError;
+              }
+            }
+          }
+
+          // Stop if the last message in this batch is young enough
+          const lastMessage = messages.last();
+          if (lastMessage) {
+            lastId = lastMessage.id;
+            shouldContinue = (now - lastMessage.createdTimestamp) / 1000 > config.vanish_after;
+          } else {
+            shouldContinue = false;
+          }
+        }
+      } catch (channelError) {
+        console.error(`Error processing channel ${config.channel_id}:`, channelError);
+        // Continue with next channel
       }
     }
   } catch (error) {

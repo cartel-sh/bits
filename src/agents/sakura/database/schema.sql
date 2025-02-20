@@ -15,6 +15,17 @@ CREATE TABLE IF NOT EXISTS user_identities (
 
 CREATE INDEX IF NOT EXISTS user_identities_user_id_idx ON user_identities(user_id);
 
+-- Vanishing channels configuration
+CREATE TABLE IF NOT EXISTS vanishing_channels (
+    channel_id TEXT PRIMARY KEY,
+    guild_id TEXT NOT NULL,
+    vanish_after INTEGER NOT NULL, -- duration in seconds
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS vanishing_channels_guild_idx ON vanishing_channels(guild_id);
+
 -- Practice tracking
 CREATE TABLE IF NOT EXISTS practice_sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -42,6 +53,12 @@ $$ language 'plpgsql';
 DROP TRIGGER IF EXISTS update_users_updated_at ON users;
 CREATE TRIGGER update_users_updated_at
     BEFORE UPDATE ON users
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_vanishing_channels_updated_at ON vanishing_channels;
+CREATE TRIGGER update_vanishing_channels_updated_at
+    BEFORE UPDATE ON vanishing_channels
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
