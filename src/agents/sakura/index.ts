@@ -23,7 +23,7 @@ if (!DATABASE_URL) {
 }
 
 const sql = postgres(DATABASE_URL, {
-  ssl: process.env.NODE_ENV === "production",
+  ssl: false
 });
 
 const client = new Client({

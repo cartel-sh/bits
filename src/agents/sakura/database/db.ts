@@ -5,8 +5,23 @@ if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL is not set");
 }
 
+console.log("Attempting to connect to database...");
+
 const sql = postgres(process.env.DATABASE_URL, {
   ssl: process.env.NODE_ENV === "production",
+  connect_timeout: 10,
+  idle_timeout: 20,
+  max_lifetime: 60 * 30,
+  connection: {
+    application_name: 'sakura_bot'
+  }
+});
+
+// Test the connection
+sql`SELECT 1`.then(() => {
+  console.log("Successfully connected to database");
+}).catch(err => {
+  console.error("Failed to connect to database:", err);
 });
 
 export interface PracticeSession {
@@ -36,13 +51,6 @@ export const getUserByDiscordId = async (discordId: string): Promise<string> => 
     SELECT get_or_create_user_by_identity('discord', ${discordId}) as id
   `;
   return result[0].id;
-};
-
-export const linkIdentity = async (userId: string, platform: string, identity: string) => {
-  await sql`
-    INSERT INTO user_identities (user_id, platform, identity)
-    VALUES (${userId}, ${platform}, ${identity})
-  `;
 };
 
 export const startSession = async (discordId: string, notes?: string): Promise<PracticeSession> => {
