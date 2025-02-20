@@ -247,8 +247,8 @@ export const getTopUsers = async (): Promise<Array<{ identity: string; total_dur
 export const setVanishingChannel = async (channelId: string, guildId: string, duration: number): Promise<void> => {
   await checkDbConnection();
   await sql`
-    INSERT INTO vanishing_channels (channel_id, guild_id, vanish_after)
-    VALUES (${channelId}, ${guildId}, ${duration})
+    INSERT INTO vanishing_channels (channel_id, guild_id, vanish_after, messages_deleted)
+    VALUES (${channelId}, ${guildId}, ${duration}, 0)
     ON CONFLICT (channel_id) 
     DO UPDATE SET 
       vanish_after = ${duration},

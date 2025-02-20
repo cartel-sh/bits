@@ -133,6 +133,7 @@ const deleteOldMessages = async () => {
         if (totalDeleted > 0) {
           try {
             await updateVanishingChannelStats(channel.id, totalDeleted);
+            console.log(`[VANISH] Updated stats for ${channel.name}: ${totalDeleted} messages deleted`);
           } catch (error) {
             console.error(`[VANISH] Failed to update deletion stats for ${channel.name}:`, error);
           }
