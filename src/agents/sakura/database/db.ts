@@ -23,6 +23,14 @@ export interface UserIdentity {
   identity: string;
 }
 
+export interface VanishingChannel {
+  channel_id: string;
+  guild_id: string;
+  vanish_after: number;  // in seconds
+  created_at: Date;
+  updated_at: Date;
+}
+
 export const getUserByDiscordId = async (discordId: string): Promise<string> => {
   console.log(`[DB] Getting or creating user for Discord ID: ${discordId}`);
   const start = Date.now();
@@ -232,4 +240,48 @@ export const getTopUsers = async (): Promise<Array<{ identity: string; total_dur
   `;
   
   return results;
+};
+
+export const setVanishingChannel = async (channelId: string, guildId: string, duration: number): Promise<void> => {
+  await checkDbConnection();
+  await sql`
+    INSERT INTO vanishing_channels (channel_id, guild_id, vanish_after)
+    VALUES (${channelId}, ${guildId}, ${duration})
+    ON CONFLICT (channel_id) 
+    DO UPDATE SET 
+      vanish_after = ${duration},
+      updated_at = CURRENT_TIMESTAMP
+  `;
+};
+
+export const removeVanishingChannel = async (channelId: string): Promise<void> => {
+  await checkDbConnection();
+  await sql`
+    DELETE FROM vanishing_channels
+    WHERE channel_id = ${channelId}
+  `;
+};
+
+export const getVanishingChannels = async (guildId?: string): Promise<VanishingChannel[]> => {
+  await checkDbConnection();
+  
+  if (guildId) {
+    return sql<VanishingChannel[]>`
+      SELECT * FROM vanishing_channels
+      WHERE guild_id = ${guildId}
+    `;
+  }
+  
+  return sql<VanishingChannel[]>`
+    SELECT * FROM vanishing_channels
+  `;
+};
+
+export const getVanishingChannel = async (channelId: string): Promise<VanishingChannel | null> => {
+  await checkDbConnection();
+  const result = await sql<[VanishingChannel]>`
+    SELECT * FROM vanishing_channels
+    WHERE channel_id = ${channelId}
+  `;
+  return result[0] || null;
 }; 
