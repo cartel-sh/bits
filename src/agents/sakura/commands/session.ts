@@ -25,6 +25,8 @@ export const startCommand = {
     console.log(`[START] User ${interaction.user.id} (${interaction.user.tag}) initiating practice session`);
     
     try {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      
       const notes = interaction.options.getString("notes") || undefined;
       console.log(`[START] Starting session for user ${interaction.user.id} with notes: ${notes || 'none'}`);
       
@@ -32,19 +34,26 @@ export const startCommand = {
       const session = await startSession(interaction.user.id, notes);
       console.log(`[START] Database operation completed in ${Date.now() - dbStart}ms`);
 
-      await interaction.reply({
+      await interaction.editReply({
         content: `Started your practice session!`,
-        flags: MessageFlags.Ephemeral,
       });
       console.log(`[START] Command completed successfully in ${Date.now() - cmdStart}ms`);
     } catch (error) {
       console.error(`[START] Error for user ${interaction.user.id}:`, error);
       console.error(`[START] Stack trace:`, error instanceof Error ? error.stack : 'No stack trace');
       
-      await interaction.reply({
-        content: error instanceof Error ? error.message : "An error occurred while starting the practice session.",
-        flags: MessageFlags.Ephemeral,
-      });
+      const errorMessage = error instanceof Error 
+        ? error.message
+        : "An error occurred while starting the practice session.";
+        
+      if (interaction.deferred) {
+        await interaction.editReply({ content: errorMessage });
+      } else {
+        await interaction.reply({
+          content: errorMessage,
+          flags: MessageFlags.Ephemeral,
+        });
+      }
     }
   },
 };
@@ -59,6 +68,8 @@ export const stopCommand = {
     console.log(`[STOP] User ${interaction.user.id} (${interaction.user.tag}) stopping practice session`);
     
     try {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      
       const dbStart = Date.now();
       const session = await stopSession(interaction.user.id);
       console.log(`[STOP] Database operation completed in ${Date.now() - dbStart}ms`);
@@ -66,19 +77,26 @@ export const stopCommand = {
       const duration = session.duration || 0;
       console.log(`[STOP] Session duration: ${duration}s (${formatDuration(duration)})`);
 
-      await interaction.reply({
+      await interaction.editReply({
         content: `Ended practice session. Duration: ${formatDuration(duration)}`,
-        flags: MessageFlags.Ephemeral,
       });
       console.log(`[STOP] Command completed successfully in ${Date.now() - cmdStart}ms`);
     } catch (error) {
       console.error(`[STOP] Error for user ${interaction.user.id}:`, error);
       console.error(`[STOP] Stack trace:`, error instanceof Error ? error.stack : 'No stack trace');
       
-      await interaction.reply({
-        content: error instanceof Error ? error.message : "An error occurred while stopping the practice session.",
-        flags: MessageFlags.Ephemeral,
-      });
+      const errorMessage = error instanceof Error 
+        ? error.message
+        : "An error occurred while stopping the practice session.";
+        
+      if (interaction.deferred) {
+        await interaction.editReply({ content: errorMessage });
+      } else {
+        await interaction.reply({
+          content: errorMessage,
+          flags: MessageFlags.Ephemeral,
+        });
+      }
     }
   },
 };

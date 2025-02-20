@@ -9,6 +9,7 @@ console.log("Attempting to connect to database...");
 
 let dbConnected = false;
 let connectionError: Error | null = null;
+let connectionReadyPromise: Promise<void>;
 
 const sql = postgres(process.env.DATABASE_URL, {
   ssl: process.env.NODE_ENV === "production",
@@ -29,20 +30,27 @@ const sql = postgres(process.env.DATABASE_URL, {
   }
 });
 
-const initializeConnection = async () => {
-  try {
-    await sql`SELECT 1`;
-    console.log('[DB] Initial connection successful');
-    dbConnected = true;
-    connectionError = null;
-  } catch (err) {
-    console.error('[DB] Initial connection failed:', err);
-    dbConnected = false;
-    connectionError = err instanceof Error ? err : new Error(String(err));
-    setTimeout(initializeConnection, 5000);
-  }
-};
+// Initialize connection with promise
+connectionReadyPromise = new Promise((resolve, reject) => {
+  const tryConnect = async () => {
+    try {
+      await sql`SELECT 1`;
+      console.log('[DB] Initial connection successful');
+      dbConnected = true;
+      connectionError = null;
+      resolve();
+    } catch (err) {
+      console.error('[DB] Initial connection failed:', err);
+      dbConnected = false;
+      connectionError = err instanceof Error ? err : new Error(String(err));
+      setTimeout(tryConnect, 5000);
+    }
+  };
+  
+  tryConnect();
+});
 
+// Monitor connection health
 const monitorConnection = async () => {
   try {
     await sql`SELECT 1`;
@@ -60,18 +68,15 @@ const monitorConnection = async () => {
   }
 };
 
-initializeConnection().catch(err => {
+// Start monitoring after initial connection
+connectionReadyPromise.then(() => {
+  setInterval(monitorConnection, 30000);
+}).catch(err => {
   console.error("Failed to establish initial database connection:", err);
-  console.error("Error details:", {
-    code: err.code,
-    message: err.message,
-    stack: err.stack
-  });
 });
 
-setInterval(monitorConnection, 30000);
-
-const checkDbConnection = () => {
+const checkDbConnection = async () => {
+  await connectionReadyPromise;
   if (!dbConnected) {
     const error = new Error(
       connectionError 
@@ -110,7 +115,7 @@ export const getUserByDiscordId = async (discordId: string): Promise<string> => 
   const start = Date.now();
   
   try {
-    checkDbConnection();
+    await checkDbConnection();
     const result = await sql<[{ id: string }]>`
       SELECT get_or_create_user_by_identity('discord', ${discordId}) as id
     `;
@@ -130,7 +135,7 @@ export const startSession = async (discordId: string, notes?: string): Promise<P
   const start = Date.now();
   
   try {
-    checkDbConnection();
+    await checkDbConnection();
     const userId = await getUserByDiscordId(discordId);
     console.log(`[DB] Retrieved userId: ${userId}`);
     
