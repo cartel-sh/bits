@@ -20,15 +20,9 @@ export const sql = postgres(process.env.DATABASE_URL, {
   connection: {
     application_name: 'sakura_bot'
   },
-  onnotice: (notice) => {
-    console.log('[DB NOTICE]', notice);
-  },
   transform: {
     undefined: null,
   },
-  debug: (connection_id, query) => {
-    console.log(`[DB DEBUG] Connection ${connection_id} executing:`, query.split('\n')[0]);
-  }
 });
 
 connectionReadyPromise = new Promise((resolve, reject) => {
@@ -88,12 +82,19 @@ export const checkDbConnection = async () => {
 
 export const initializeDatabase = async () => {
   try {
+    // Run initial schema
     const schemaPath = join(__dirname, "schema.sql");
     const schema = readFileSync(schemaPath, "utf-8");
     await sql.unsafe(schema);
     console.log("Database schema initialized successfully");
+
+    // Run migrations
+    const migrationsPath = join(__dirname, "migrations.sql");
+    const migrations = readFileSync(migrationsPath, "utf-8");
+    await sql.unsafe(migrations);
+    console.log("Database migrations completed successfully");
   } catch (error) {
-    console.error("Error initializing database schema:", error);
+    console.error("Error initializing database:", error);
     throw error;
   }
 };

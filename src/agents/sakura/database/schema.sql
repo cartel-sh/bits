@@ -1,4 +1,4 @@
--- Users and their identities
+-- Initial Schema
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -15,20 +15,14 @@ CREATE TABLE IF NOT EXISTS user_identities (
 
 CREATE INDEX IF NOT EXISTS user_identities_user_id_idx ON user_identities(user_id);
 
--- Vanishing channels configuration
 CREATE TABLE IF NOT EXISTS vanishing_channels (
     channel_id TEXT PRIMARY KEY,
     guild_id TEXT NOT NULL,
-    vanish_after INTEGER NOT NULL, -- duration in seconds
-    messages_deleted BIGINT DEFAULT 0, -- total messages deleted
-    last_deletion TIMESTAMP WITH TIME ZONE, -- timestamp of last deletion
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    vanish_after INTEGER NOT NULL -- duration in seconds
 );
 
 CREATE INDEX IF NOT EXISTS vanishing_channels_guild_idx ON vanishing_channels(guild_id);
 
--- Practice tracking
 CREATE TABLE IF NOT EXISTS practice_sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id),

@@ -32,7 +32,16 @@ const commands = [
 ];
 
 // Message deletion logic
+let isDeletionInProgress = false;
+
 const deleteOldMessages = async () => {
+  // Prevent overlapping runs
+  if (isDeletionInProgress) {
+    console.log('[VANISH] Previous deletion run still in progress, skipping this run');
+    return;
+  }
+
+  isDeletionInProgress = true;
   try {
     const channels = await getVanishingChannels();
     console.log(`[VANISH] Checking ${channels.length} channels for old messages`);
@@ -70,10 +79,11 @@ const deleteOldMessages = async () => {
 
           if (oldMessages.size > 0) {
             console.log(`[VANISH] Found ${oldMessages.size} old messages in ${channel.name}`);
+            let batchDeleted = 0;
             
             try {
               await channel.bulkDelete(oldMessages);
-              totalDeleted += oldMessages.size;
+              batchDeleted = oldMessages.size;
               console.log(`[VANISH] Bulk deleted ${oldMessages.size} messages from ${channel.name}`);
             } catch (deleteError) {
               // Handle messages older than 14 days
@@ -83,21 +93,24 @@ const deleteOldMessages = async () => {
                 for (const [messageId, message] of oldMessages) {
                   try {
                     await message.delete();
-                    totalDeleted++;
+                    batchDeleted++;
+                    console.log(`[VANISH] Successfully deleted message ${messageId}`);
                     
                     // Add a small delay to avoid rate limits
                     await new Promise(resolve => setTimeout(resolve, 200));
                   } catch (singleDeleteError: any) {
-                    totalErrors++;
                     // Handle specific Discord API errors
                     if (singleDeleteError.code === '10008') { // Unknown Message
-                      console.log(`[VANISH] Message ${messageId} already deleted or inaccessible`);
+                      console.log(`[VANISH] Message ${messageId} already deleted, counting as success`);
+                      batchDeleted++;
                     } else if (singleDeleteError.code === '50013') { // Missing Permissions
                       console.error(`[VANISH] Missing permissions to delete messages in ${channel.name}`);
+                      totalErrors++;
                       shouldContinue = false;
                       break;
                     } else if (singleDeleteError.code === '429') { // Rate Limited
                       console.log(`[VANISH] Rate limited, waiting longer between deletions`);
+                      totalErrors++;
                       await new Promise(resolve => setTimeout(resolve, 5000));
                     } else {
                       console.error(`[VANISH] Error deleting message ${messageId}:`, {
@@ -106,6 +119,7 @@ const deleteOldMessages = async () => {
                         channel: channel.name,
                         channelId: channel.id
                       });
+                      totalErrors++;
                     }
                   }
                 }
@@ -117,6 +131,21 @@ const deleteOldMessages = async () => {
                 totalErrors++;
               }
             }
+
+            // Update stats after each successful batch
+            if (batchDeleted > 0) {
+              totalDeleted += batchDeleted;
+              try {
+                console.log(`[VANISH] Updating stats for ${channel.name} with ${batchDeleted} deletions`);
+                await updateVanishingChannelStats(channel.id, batchDeleted);
+                console.log(`[VANISH] Successfully updated stats for ${channel.name}`);
+              } catch (error) {
+                console.error(`[VANISH] Failed to update deletion stats for ${channel.name}:`, error);
+                if (error instanceof Error) {
+                  console.error(`[VANISH] Error stack:`, error.stack);
+                }
+              }
+            }
           }
 
           // Stop if the last message in this batch is young enough
@@ -126,16 +155,6 @@ const deleteOldMessages = async () => {
             shouldContinue = (now - lastMessage.createdTimestamp) / 1000 > config.vanish_after;
           } else {
             shouldContinue = false;
-          }
-        }
-
-        // Update deletion stats if any messages were deleted
-        if (totalDeleted > 0) {
-          try {
-            await updateVanishingChannelStats(channel.id, totalDeleted);
-            console.log(`[VANISH] Updated stats for ${channel.name}: ${totalDeleted} messages deleted`);
-          } catch (error) {
-            console.error(`[VANISH] Failed to update deletion stats for ${channel.name}:`, error);
           }
         }
 
@@ -158,6 +177,8 @@ const deleteOldMessages = async () => {
     }
   } catch (error) {
     console.error("[VANISH] Error in message deletion routine:", error);
+  } finally {
+    isDeletionInProgress = false;
   }
 };
 
@@ -207,15 +228,44 @@ client.on("interactionCreate", async (interaction: Interaction) => {
   }
 });
 
-// Start message deletion routine when bot is ready
+// Handle process termination
+const handleShutdown = async (signal: string) => {
+  console.log(`\nReceived ${signal}. Starting cleanup...`);
+  try {
+    // Stop the message deletion interval
+    if (global.deleteInterval) {
+      clearInterval(global.deleteInterval);
+    }
+    
+    // Destroy the Discord client connection
+    if (client) {
+      console.log('Destroying Discord client connection...');
+      await client.destroy();
+    }
+    
+    // Cleanup database connections
+    console.log('Cleaning up database connection...');
+    await cleanup();
+    
+    console.log('Cleanup completed. Exiting...');
+    process.exit(0);
+  } catch (error) {
+    console.error('Error during cleanup:', error);
+    process.exit(1);
+  }
+};
+
+process.on("SIGINT", () => handleShutdown("SIGINT"));
+process.on("SIGTERM", () => handleShutdown("SIGTERM"));
+
+declare global {
+  var deleteInterval: ReturnType<typeof setInterval> | undefined;
+}
+
 client.once("ready", () => {
   console.log("Sakura is ready!");
-  // Check for messages to delete every minute
-  setInterval(deleteOldMessages, 60000);
+  global.deleteInterval = setInterval(deleteOldMessages, 60000);
 });
 
-// Handle process termination
-process.on("SIGINT", cleanup);
-process.on("SIGTERM", cleanup);
-
 startBot();
+

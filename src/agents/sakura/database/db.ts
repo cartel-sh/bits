@@ -289,13 +289,33 @@ export const getVanishingChannel = async (channelId: string): Promise<VanishingC
 };
 
 export const updateVanishingChannelStats = async (channelId: string, deletedCount: number): Promise<void> => {
+  console.log(`[DB] Updating vanishing channel stats for channel ${channelId} with ${deletedCount} deletions`);
   await checkDbConnection();
-  await sql`
-    UPDATE vanishing_channels
-    SET 
-      messages_deleted = messages_deleted + ${deletedCount},
-      last_deletion = CURRENT_TIMESTAMP,
-      updated_at = CURRENT_TIMESTAMP
-    WHERE channel_id = ${channelId}
-  `;
+  
+  try {
+    const result = await sql`
+      UPDATE vanishing_channels
+      SET 
+        messages_deleted = messages_deleted + ${deletedCount},
+        last_deletion = CURRENT_TIMESTAMP,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE channel_id = ${channelId}
+      RETURNING messages_deleted, last_deletion
+    `;
+    
+    if (result.length > 0) {
+      console.log(`[DB] Successfully updated stats for channel ${channelId}:`, {
+        total_deleted: result[0].messages_deleted,
+        last_deletion: result[0].last_deletion
+      });
+    } else {
+      console.error(`[DB] No vanishing channel found with ID ${channelId}`);
+    }
+  } catch (error) {
+    console.error(`[DB] Error updating vanishing channel stats:`, error);
+    if (error instanceof Error) {
+      console.error(`[DB] Error stack:`, error.stack);
+    }
+    throw error;
+  }
 }; 
