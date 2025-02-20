@@ -47,16 +47,24 @@ export interface UserIdentity {
 }
 
 export const getUserByDiscordId = async (discordId: string): Promise<string> => {
+  console.log(`[DB] Getting or creating user for Discord ID: ${discordId}`);
+  const start = Date.now();
+  
   const result = await sql<[{ id: string }]>`
     SELECT get_or_create_user_by_identity('discord', ${discordId}) as id
   `;
+  console.log(`[DB] User lookup completed in ${Date.now() - start}ms`);
   return result[0].id;
 };
 
 export const startSession = async (discordId: string, notes?: string): Promise<PracticeSession> => {
+  console.log(`[DB] Starting new session for Discord ID: ${discordId}`);
+  const start = Date.now();
+  
   const userId = await getUserByDiscordId(discordId);
   const date = DateTime.now().toFormat("yyyy-MM-dd");
 
+  console.log(`[DB] Checking for active sessions for user ${userId}`);
   const activeSession = await sql<PracticeSession[]>`
     SELECT * FROM practice_sessions
     WHERE user_id = ${userId}
@@ -64,9 +72,11 @@ export const startSession = async (discordId: string, notes?: string): Promise<P
   `;
 
   if (activeSession.length > 0) {
+    console.log(`[DB] Found existing active session for user ${userId}`);
     throw new Error("You already have an active practice session");
   }
 
+  console.log(`[DB] Creating new session for user ${userId}`);
   const result = await sql<[PracticeSession]>`
     INSERT INTO practice_sessions (
       user_id,
@@ -82,12 +92,17 @@ export const startSession = async (discordId: string, notes?: string): Promise<P
     RETURNING *
   `;
 
+  console.log(`[DB] Session created successfully in ${Date.now() - start}ms`);
   return result[0];
 };
 
 export const stopSession = async (discordId: string): Promise<PracticeSession> => {
+  console.log(`[DB] Stopping session for Discord ID: ${discordId}`);
+  const start = Date.now();
+  
   const userId = await getUserByDiscordId(discordId);
 
+  console.log(`[DB] Updating session for user ${userId}`);
   const result = await sql<[PracticeSession]>`
     UPDATE practice_sessions 
     SET 
@@ -99,9 +114,11 @@ export const stopSession = async (discordId: string): Promise<PracticeSession> =
   `;
 
   if (!result[0]) {
+    console.log(`[DB] No active session found for user ${userId}`);
     throw new Error("No active practice session found");
   }
 
+  console.log(`[DB] Session stopped successfully in ${Date.now() - start}ms`);
   return result[0];
 };
 
