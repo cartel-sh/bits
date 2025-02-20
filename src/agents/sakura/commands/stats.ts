@@ -4,9 +4,11 @@ import {
   getDailyStats,
   getMonthlyStats,
   getWeeklyStats,
+  getTopUsers,
 } from "../database/db";
 
 const formatDuration = (seconds: number): string => {
+  if (!seconds || isNaN(seconds)) return '0h 0m';
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   return `${hours}h ${minutes}m`;
@@ -30,6 +32,11 @@ export const statsCommand = {
       subcommand
         .setName("monthly")
         .setDescription("Get your monthly practice stats"),
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName("top")
+        .setDescription("Show top practice durations"),
     ),
 
   execute: async (interaction: ChatInputCommandInteraction) => {
@@ -47,16 +54,32 @@ export const statsCommand = {
         case "weekly": {
           const stats = await getWeeklyStats(userId);
           content = `Weekly practice summary:\n${Object.entries(stats)
+            .sort(([dateA], [dateB]) => dateB.localeCompare(dateA))
             .map(([date, duration]) => `${date}: ${formatDuration(duration)}`)
             .join("\n")}`;
           break;
         }
         case "monthly": {
           const stats = await getMonthlyStats(userId);
-          const total = Object.values(stats).reduce((sum, d) => sum + d, 0);
+          const total = Object.values(stats).reduce((sum, d) => sum + (d || 0), 0);
           content = `Monthly practice summary:\nTotal: ${formatDuration(total)}\n\nDaily breakdown:\n${Object.entries(stats)
+            .sort(([dateA], [dateB]) => dateB.localeCompare(dateA))
             .map(([date, duration]) => `${date}: ${formatDuration(duration)}`)
             .join("\n")}`;
+          break;
+        }
+        case "top": {
+          const topUsers = await getTopUsers();
+          content = "Top Practice Durations:\n\n" + topUsers
+            .filter(user => user.total_duration > 0)
+            .map((user, index) => {
+              return `${user.identity}: ${formatDuration(user.total_duration)}`;
+            })
+            .join("\n");
+          
+          if (!content.includes(":")) {
+            content = "No practice sessions recorded yet!";
+          }
           break;
         }
       }

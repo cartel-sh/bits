@@ -215,4 +215,21 @@ export const getChannels = async (guildId: string): Promise<ChannelSettings | nu
     WHERE guild_id = ${guildId}
   `;
   return result[0] || null;
+};
+
+export const getTopUsers = async (): Promise<Array<{ identity: string; total_duration: number }>> => {
+  await checkDbConnection();
+  
+  const results = await sql<Array<{ identity: string; total_duration: number }>>`
+    SELECT 
+      ui.identity,
+      COALESCE(SUM(ps.duration), 0) as total_duration
+    FROM user_identities ui
+    LEFT JOIN practice_sessions ps ON ui.user_id = ps.user_id
+    WHERE ui.platform = 'discord'
+    GROUP BY ui.identity
+    ORDER BY total_duration DESC
+  `;
+  
+  return results;
 }; 
