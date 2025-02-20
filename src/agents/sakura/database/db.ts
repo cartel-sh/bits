@@ -12,7 +12,7 @@ let connectionError: Error | null = null;
 let connectionReadyPromise: Promise<void>;
 
 const sql = postgres(process.env.DATABASE_URL, {
-  ssl: process.env.NODE_ENV === "production",
+  ssl: false,
   connect_timeout: 10,
   idle_timeout: 20,
   max_lifetime: 60 * 30,
