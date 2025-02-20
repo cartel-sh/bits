@@ -22,7 +22,7 @@ export const vanishCommand = {
   data: new SlashCommandBuilder()
     .setName("vanish")
     .setDescription("Configure message auto-deletion for this channel")
-    .setDefaultMemberPermissions(PermissionsBitField.Flags.ManageMessages)
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addSubcommand(subcommand =>
       subcommand
         .setName("set")
