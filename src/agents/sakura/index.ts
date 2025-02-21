@@ -4,7 +4,6 @@ import {
   Client,
   type Interaction,
   MessageFlags,
-  Message,
   TextChannel,
 } from "discord.js";
 import { startCommand, stopCommand } from "./commands/session";
@@ -12,6 +11,18 @@ import { statsCommand } from "./commands/stats";
 import { vanishCommand } from "./commands/vanish";
 import { initializeDatabase, cleanup } from "./database/connection";
 import { getVanishingChannels, updateVanishingChannelStats } from "./database/db";
+
+// Helper function to format duration for channel topic
+const formatDurationForTopic = (seconds: number): string => {
+  if (seconds >= 86400) {
+    return `${Math.floor(seconds / 86400)}d`;
+  } else if (seconds >= 3600) {
+    return `${Math.floor(seconds / 3600)}h`;
+  } else if (seconds >= 60) {
+    return `${Math.floor(seconds / 60)}m`;
+  }
+  return `${seconds}s`;
+};
 
 const { SAKURA_TOKEN, SAKURA_CLIENT_ID } = process.env;
 if (!SAKURA_TOKEN || !SAKURA_CLIENT_ID) {
@@ -163,6 +174,17 @@ const deleteOldMessages = async () => {
           deleted: totalDeleted,
           errors: totalErrors
         });
+
+        // Update channel topic with vanish info
+        try {
+          const vanishDuration = formatDurationForTopic(config.vanish_after);
+          const totalMessages = (config.messages_deleted || 0) + totalDeleted;
+          const newTopic = `vanish: ${vanishDuration}, total deleted: ${totalMessages.toLocaleString()} messages`;
+          await channel.setTopic(newTopic);
+          console.log(`[VANISH] Updated channel topic for ${channel.name}`);
+        } catch (topicError) {
+          console.error(`[VANISH] Failed to update channel topic for ${channel.name}:`, topicError);
+        }
 
       } catch (channelError: any) {
         if (channelError.code === '10003') { // Unknown Channel

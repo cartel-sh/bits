@@ -1,5 +1,5 @@
 import { SlashCommandBuilder } from "@discordjs/builders";
-import { type ChatInputCommandInteraction, MessageFlags, PermissionFlagsBits } from "discord.js";
+import { type ChatInputCommandInteraction, MessageFlags, PermissionFlagsBits, TextChannel } from "discord.js";
 import { setVanishingChannel, removeVanishingChannel, getVanishingChannel } from "../database/db";
 import { DateTime } from "luxon";
 
@@ -33,6 +33,18 @@ const formatDuration = (seconds: number): string => {
 const formatTimestamp = (date: Date | null): string => {
   if (!date) return 'Never';
   return DateTime.fromJSDate(date).toRelative() || 'Unknown';
+};
+
+// Helper function to format duration for channel topic
+const formatDurationForTopic = (seconds: number): string => {
+  if (seconds >= 86400) {
+    return `${Math.floor(seconds / 86400)}d`;
+  } else if (seconds >= 3600) {
+    return `${Math.floor(seconds / 3600)}h`;
+  } else if (seconds >= 60) {
+    return `${Math.floor(seconds / 60)}m`;
+  }
+  return `${seconds}s`;
 };
 
 export const vanishCommand = {
@@ -87,6 +99,13 @@ export const vanishCommand = {
           }
 
           await setVanishingChannel(interaction.channelId, interaction.guildId, seconds);
+          
+          // Update channel topic
+          if (interaction.channel instanceof TextChannel) {
+            const newTopic = `vanish: ${formatDurationForTopic(seconds)}, total deleted: 0 messages`;
+            await interaction.channel.setTopic(newTopic);
+          }
+          
           await interaction.reply({
             content: `Messages in this channel will be automatically deleted after ${durationStr}`,
           });
@@ -95,6 +114,14 @@ export const vanishCommand = {
 
         case "off": {
           await removeVanishingChannel(interaction.channelId);
+          
+          // Clear vanish info from channel topic
+          if (interaction.channel instanceof TextChannel) {
+            const currentTopic = interaction.channel.topic || '';
+            const newTopic = currentTopic.replace(/vanish: .+?messages/, '').trim();
+            await interaction.channel.setTopic(newTopic);
+          }
+          
           await interaction.reply({
             content: "Auto-deletion has been disabled for this channel",
           });
