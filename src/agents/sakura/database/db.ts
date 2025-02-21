@@ -318,4 +318,16 @@ export const updateVanishingChannelStats = async (channelId: string, deletedCoun
     }
     throw error;
   }
+};
+
+export const getTotalTrackedHours = async (): Promise<number> => {
+  await checkDbConnection();
+  
+  const result = await sql<[{ total_seconds: number }]>`
+    SELECT COALESCE(SUM(duration), 0) as total_seconds
+    FROM practice_sessions
+    WHERE duration IS NOT NULL
+  `;
+  
+  return Math.floor(result[0].total_seconds / 3600); // Convert seconds to hours
 }; 

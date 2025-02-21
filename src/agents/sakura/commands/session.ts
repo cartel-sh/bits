@@ -1,6 +1,6 @@
 import { SlashCommandBuilder } from "@discordjs/builders";
-import { type ChatInputCommandInteraction, MessageFlags } from "discord.js";
-import { startSession, stopSession } from "../database/db";
+import { type ChatInputCommandInteraction, MessageFlags, Client, ActivityType } from "discord.js";
+import { startSession, stopSession, getTotalTrackedHours } from "../database/db";
 import { DateTime } from "luxon";
 
 const formatDuration = (seconds: number): string => {
@@ -76,6 +76,13 @@ export const stopCommand = {
       
       const duration = session.duration || 0;
       console.log(`[STOP] Session duration: ${duration}s (${formatDuration(duration)})`);
+
+      const client = interaction.client;
+      const totalHours = await getTotalTrackedHours();
+      await client.user?.setActivity({
+        name: `${totalHours.toLocaleString()}h of practice`,
+        type: ActivityType.Custom,
+      });
 
       await interaction.editReply({
         content: `Ended practice session. Duration: ${formatDuration(duration)}`,

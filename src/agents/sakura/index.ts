@@ -5,12 +5,13 @@ import {
   type Interaction,
   MessageFlags,
   TextChannel,
+  ActivityType,
 } from "discord.js";
 import { startCommand, stopCommand } from "./commands/session";
 import { statsCommand } from "./commands/stats";
 import { vanishCommand } from "./commands/vanish";
 import { initializeDatabase, cleanup } from "./database/connection";
-import { getVanishingChannels, updateVanishingChannelStats } from "./database/db";
+import { getVanishingChannels, updateVanishingChannelStats, getTotalTrackedHours } from "./database/db";
 
 // Helper function to format duration for channel topic
 const formatDurationForTopic = (seconds: number): string => {
@@ -250,6 +251,30 @@ client.on("interactionCreate", async (interaction: Interaction) => {
   }
 });
 
+declare global {
+  var deleteInterval: ReturnType<typeof setInterval> | undefined;
+}
+
+const updateBotStatus = async (client: Client) => {
+  try {
+    const totalHours = await getTotalTrackedHours();
+    await client.user?.setActivity({
+      name: `${totalHours.toLocaleString()} hours tracked`,
+      type: ActivityType.Watching
+    });
+  } catch (error) {
+    console.error('[STATUS] Error updating bot status:', error);
+  }
+};
+
+client.once("ready", () => {
+  console.log("Sakura is ready!");
+  global.deleteInterval = setInterval(deleteOldMessages, 60000);
+  
+  // Set initial status
+  updateBotStatus(client);
+});
+
 // Handle process termination
 const handleShutdown = async (signal: string) => {
   console.log(`\nReceived ${signal}. Starting cleanup...`);
@@ -279,15 +304,6 @@ const handleShutdown = async (signal: string) => {
 
 process.on("SIGINT", () => handleShutdown("SIGINT"));
 process.on("SIGTERM", () => handleShutdown("SIGTERM"));
-
-declare global {
-  var deleteInterval: ReturnType<typeof setInterval> | undefined;
-}
-
-client.once("ready", () => {
-  console.log("Sakura is ready!");
-  global.deleteInterval = setInterval(deleteOldMessages, 60000);
-});
 
 startBot();
 

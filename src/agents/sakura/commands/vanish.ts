@@ -21,23 +21,6 @@ const parseDuration = (duration: string): number | null => {
 
 const formatDuration = (seconds: number): string => {
   if (seconds >= 86400) {
-    return `${Math.floor(seconds / 86400)} days`;
-  } else if (seconds >= 3600) {
-    return `${Math.floor(seconds / 3600)} hours`;
-  } else if (seconds >= 60) {
-    return `${Math.floor(seconds / 60)} minutes`;
-  }
-  return `${seconds} seconds`;
-};
-
-const formatTimestamp = (date: Date | null): string => {
-  if (!date) return 'Never';
-  return DateTime.fromJSDate(date).toRelative() || 'Unknown';
-};
-
-// Helper function to format duration for channel topic
-const formatDurationForTopic = (seconds: number): string => {
-  if (seconds >= 86400) {
     return `${Math.floor(seconds / 86400)}d`;
   } else if (seconds >= 3600) {
     return `${Math.floor(seconds / 3600)}h`;
@@ -45,6 +28,11 @@ const formatDurationForTopic = (seconds: number): string => {
     return `${Math.floor(seconds / 60)}m`;
   }
   return `${seconds}s`;
+};
+
+const formatTimestamp = (date: Date | null): string => {
+  if (!date) return 'Never';
+  return DateTime.fromJSDate(date).toRelative() || 'Unknown';
 };
 
 export const vanishCommand = {
@@ -102,7 +90,7 @@ export const vanishCommand = {
           
           // Update channel topic
           if (interaction.channel instanceof TextChannel) {
-            const newTopic = `vanish: ${formatDurationForTopic(seconds)}, total deleted: 0 messages`;
+            const newTopic = `vanish: ${formatDuration(seconds)}`;
             await interaction.channel.setTopic(newTopic);
           }
           
