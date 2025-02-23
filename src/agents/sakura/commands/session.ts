@@ -25,7 +25,7 @@ export const startCommand = {
     console.log(`[START] User ${interaction.user.id} (${interaction.user.tag}) initiating practice session`);
     
     try {
-      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      await interaction.deferReply();
       
       const notes = interaction.options.getString("notes") || undefined;
       console.log(`[START] Starting session for user ${interaction.user.id} with notes: ${notes || 'none'}`);
@@ -68,7 +68,7 @@ export const stopCommand = {
     console.log(`[STOP] User ${interaction.user.id} (${interaction.user.tag}) stopping practice session`);
     
     try {
-      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      await interaction.deferReply();
       
       const dbStart = Date.now();
       const session = await stopSession(interaction.user.id);

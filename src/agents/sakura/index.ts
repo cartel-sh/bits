@@ -57,7 +57,7 @@ const deleteOldMessages = async () => {
   try {
     const channels = await getVanishingChannels();
     console.log(`[VANISH] Checking ${channels.length} channels for old messages`);
-    
+
     for (const config of channels) {
       try {
         const channel = await client.channels.fetch(config.channel_id);
@@ -84,7 +84,7 @@ const deleteOldMessages = async () => {
 
           totalProcessed += messages.size;
           const now = Date.now();
-          const oldMessages = messages.filter(msg => 
+          const oldMessages = messages.filter(msg =>
             !msg.pinned && // Don't delete pinned messages
             (now - msg.createdTimestamp) / 1000 > config.vanish_after
           );
@@ -92,7 +92,7 @@ const deleteOldMessages = async () => {
           if (oldMessages.size > 0) {
             console.log(`[VANISH] Found ${oldMessages.size} old messages in ${channel.name}`);
             let batchDeleted = 0;
-            
+
             try {
               await channel.bulkDelete(oldMessages);
               batchDeleted = oldMessages.size;
@@ -101,13 +101,13 @@ const deleteOldMessages = async () => {
               // Handle messages older than 14 days
               if (deleteError instanceof Error && deleteError.message.includes('14 days')) {
                 console.log(`[VANISH] Messages too old for bulk delete in ${channel.name}, deleting individually...`);
-                
+
                 for (const [messageId, message] of oldMessages) {
                   try {
                     await message.delete();
                     batchDeleted++;
                     console.log(`[VANISH] Successfully deleted message ${messageId}`);
-                    
+
                     // Add a small delay to avoid rate limits
                     await new Promise(resolve => setTimeout(resolve, 200));
                   } catch (singleDeleteError: any) {
@@ -176,11 +176,10 @@ const deleteOldMessages = async () => {
           errors: totalErrors
         });
 
-        // Update channel topic with vanish info
         try {
           const vanishDuration = formatDurationForTopic(config.vanish_after);
-          const totalMessages = (config.messages_deleted || 0) + totalDeleted;
-          const newTopic = `vanish: ${vanishDuration}, total deleted: ${totalMessages.toLocaleString()} messages`;
+          const totalMessages = config.messages_deleted;
+          const newTopic = `vanish: ${vanishDuration}, vanished ${totalMessages.toLocaleString()} messages`;
           await channel.setTopic(newTopic);
           console.log(`[VANISH] Updated channel topic for ${channel.name}`);
         } catch (topicError) {
@@ -269,7 +268,7 @@ const updateBotStatus = async (client: Client) => {
 client.once("ready", () => {
   console.log("Sakura is ready!");
   global.deleteInterval = setInterval(deleteOldMessages, 60000);
-  
+
   // Set initial status
   updateBotStatus(client);
 });
@@ -282,17 +281,17 @@ const handleShutdown = async (signal: string) => {
     if (global.deleteInterval) {
       clearInterval(global.deleteInterval);
     }
-    
+
     // Destroy the Discord client connection
     if (client) {
       console.log('Destroying Discord client connection...');
       await client.destroy();
     }
-    
+
     // Cleanup database connections
     console.log('Cleaning up database connection...');
     await cleanup();
-    
+
     console.log('Cleanup completed. Exiting...');
     process.exit(0);
   } catch (error) {

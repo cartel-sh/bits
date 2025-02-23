@@ -63,7 +63,6 @@ export const setChannelsCommand = {
 
       await interaction.reply({
         content: `Set voice channel to ${voiceChannel.name} and text channel to ${textChannel.name}`,
-        flags: MessageFlags.Ephemeral,
       });
     } catch (error) {
       console.error("Error in setChannels command:", error);
@@ -93,7 +92,6 @@ export const checkChannelsCommand = {
     if (!settings) {
       await interaction.reply({
         content: "No channels have been set up for this server.",
-        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -109,7 +107,6 @@ export const checkChannelsCommand = {
 
     await interaction.reply({
       content: response,
-      flags: MessageFlags.Ephemeral,
     });
   },
 };

@@ -86,7 +86,6 @@ export const statsCommand = {
 
       await interaction.reply({
         content,
-        flags: MessageFlags.Ephemeral,
       });
     } catch (error) {
       console.error("Error executing stats command:", error);

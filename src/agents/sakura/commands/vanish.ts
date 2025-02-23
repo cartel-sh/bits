@@ -7,7 +7,7 @@ const parseDuration = (duration: string): number | null => {
   const match = duration.match(/^(\d+)(d|h|m|s)$/);
   if (!match) return null;
 
-  const value = parseInt(match[1]);
+  const value = parseInt(match[1] || '0');
   const unit = match[2];
 
   switch (unit) {

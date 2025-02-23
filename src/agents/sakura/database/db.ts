@@ -305,8 +305,8 @@ export const updateVanishingChannelStats = async (channelId: string, deletedCoun
     
     if (result.length > 0) {
       console.log(`[DB] Successfully updated stats for channel ${channelId}:`, {
-        total_deleted: result[0].messages_deleted,
-        last_deletion: result[0].last_deletion
+        total_deleted: result[0]?.messages_deleted || 0,
+        last_deletion: result[0]?.last_deletion || null
       });
     } else {
       console.error(`[DB] No vanishing channel found with ID ${channelId}`);
@@ -329,5 +329,5 @@ export const getTotalTrackedHours = async (): Promise<number> => {
     WHERE duration IS NOT NULL
   `;
   
-  return Math.floor(result[0].total_seconds / 3600); // Convert seconds to hours
+  return Math.floor(result[0]?.total_seconds || 0 / 3600); // Convert seconds to hours
 }; 
