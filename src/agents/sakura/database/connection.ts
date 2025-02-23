@@ -1,6 +1,4 @@
 import postgres from "postgres";
-import { readFileSync } from "fs";
-import { join } from "path";
 
 if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL is not set");
@@ -76,25 +74,6 @@ export const checkDbConnection = async () => {
         : "Database connection is not established"
     );
     console.error("[DB] Connection check failed:", error);
-    throw error;
-  }
-};
-
-export const initializeDatabase = async () => {
-  try {
-    // Run initial schema
-    const schemaPath = join(__dirname, "schema.sql");
-    const schema = readFileSync(schemaPath, "utf-8");
-    await sql.unsafe(schema);
-    console.log("Database schema initialized successfully");
-
-    // Run migrations
-    const migrationsPath = join(__dirname, "migrations.sql");
-    const migrations = readFileSync(migrationsPath, "utf-8");
-    await sql.unsafe(migrations);
-    console.log("Database migrations completed successfully");
-  } catch (error) {
-    console.error("Error initializing database:", error);
     throw error;
   }
 };

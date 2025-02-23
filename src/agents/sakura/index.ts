@@ -10,7 +10,7 @@ import {
 import { startCommand, stopCommand } from "./commands/session";
 import { statsCommand } from "./commands/stats";
 import { vanishCommand } from "./commands/vanish";
-import { initializeDatabase, cleanup } from "./database/connection";
+import { cleanup } from "./database/connection";
 import { getVanishingChannels, updateVanishingChannelStats, getTotalTrackedHours } from "./database/db";
 
 // Helper function to format duration for channel topic
@@ -207,7 +207,6 @@ const deleteOldMessages = async () => {
 
 const startBot = async () => {
   try {
-    await initializeDatabase();
     await client.login(SAKURA_TOKEN);
 
     const rest = new REST({ version: "9" }).setToken(SAKURA_TOKEN);
