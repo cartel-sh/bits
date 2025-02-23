@@ -257,7 +257,7 @@ const updateBotStatus = async (client: Client) => {
   try {
     const totalHours = await getTotalTrackedHours();
     await client.user?.setActivity({
-      name: `${totalHours.toLocaleString()} hours tracked`,
+      name: `${totalHours} hours tracked`,
       type: ActivityType.Watching
     });
   } catch (error) {

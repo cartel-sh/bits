@@ -329,5 +329,5 @@ export const getTotalTrackedHours = async (): Promise<number> => {
     WHERE duration IS NOT NULL
   `;
   
-  return Math.floor(result[0]?.total_seconds || 0 / 3600); // Convert seconds to hours
+  return Math.floor(result[0]?.total_seconds || 0 / 3600);
 }; 
