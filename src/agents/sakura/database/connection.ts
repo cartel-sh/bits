@@ -6,10 +6,6 @@ if (!process.env.DATABASE_URL) {
 
 console.log("Initializing database connection...");
 
-let dbConnected = false;
-let connectionError: Error | null = null;
-let connectionReadyPromise: Promise<void>;
-
 export const sql = postgres(process.env.DATABASE_URL, {
   ssl: false,
   connect_timeout: 10,
@@ -23,60 +19,31 @@ export const sql = postgres(process.env.DATABASE_URL, {
   },
 });
 
-connectionReadyPromise = new Promise((resolve, reject) => {
-  const tryConnect = async () => {
-    try {
-      await sql`SELECT 1`;
-      console.log('[DB] Initial connection successful');
-      dbConnected = true;
-      connectionError = null;
-      resolve();
-    } catch (err) {
-      console.error('[DB] Initial connection failed:', err);
-      dbConnected = false;
-      connectionError = err instanceof Error ? err : new Error(String(err));
-      setTimeout(tryConnect, 5000);
-    }
-  };
-  
-  tryConnect();
-});
-
-const monitorConnection = async () => {
+// Initialize connection
+const initConnection = async () => {
   try {
     await sql`SELECT 1`;
-    if (!dbConnected) {
-      console.log('[DB] Connection re-established');
-      dbConnected = true;
-      connectionError = null;
-    }
+    console.log('[DB] Initial connection successful');
   } catch (err) {
-    if (dbConnected) {
-      console.error('[DB] Connection lost:', err);
-      dbConnected = false;
-      connectionError = err instanceof Error ? err : new Error(String(err));
-    }
+    console.error('[DB] Initial connection failed:', err);
+    throw err;
   }
 };
 
-connectionReadyPromise.then(() => {
+// Monitor connection health periodically
+const monitorConnection = async () => {
+  try {
+    await sql`SELECT 1`;
+  } catch (err) {
+    console.error('[DB] Connection error:', err);
+  }
+};
+
+initConnection().then(() => {
   setInterval(monitorConnection, 30000);
 }).catch(err => {
   console.error("Failed to establish initial database connection:", err);
 });
-
-export const checkDbConnection = async () => {
-  await connectionReadyPromise;
-  if (!dbConnected) {
-    const error = new Error(
-      connectionError 
-        ? `Database connection failed: ${connectionError.message}` 
-        : "Database connection is not established"
-    );
-    console.error("[DB] Connection check failed:", error);
-    throw error;
-  }
-};
 
 export const cleanup = async () => {
   console.log("Cleaning up database connection...");

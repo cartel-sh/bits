@@ -1,5 +1,5 @@
 import { DateTime } from "luxon";
-import { sql, checkDbConnection } from "./connection";
+import { sql } from "./connection";
 
 export interface PracticeSession {
   id: string;
@@ -35,35 +35,24 @@ export interface VanishingChannel {
 
 export const getUserByDiscordId = async (discordId: string): Promise<string> => {
   console.log(`[DB] Getting or creating user for Discord ID: ${discordId}`);
-  const start = Date.now();
   
   try {
-    await checkDbConnection();
     const result = await sql<[{ id: string }]>`
       SELECT get_or_create_user_by_identity('discord', ${discordId}) as id
     `;
-    console.log(`[DB] User lookup completed in ${Date.now() - start}ms`);
     return result[0].id;
   } catch (error) {
     console.error(`[DB] Error in getUserByDiscordId for ${discordId}:`, error);
-    if (error instanceof Error) {
-      console.error(`[DB] Stack trace:`, error.stack);
-    }
     throw error;
   }
 };
 
 export const startSession = async (discordId: string, notes?: string): Promise<PracticeSession> => {
   console.log(`[DB] Starting new session for Discord ID: ${discordId}`);
-  const start = Date.now();
   
   try {
-    await checkDbConnection();
     const userId = await getUserByDiscordId(discordId);
-    console.log(`[DB] Retrieved userId: ${userId}`);
-    
     const date = DateTime.now().toFormat("yyyy-MM-dd");
-    console.log(`[DB] Checking for active sessions for user ${userId}`);
     
     const activeSession = await sql<PracticeSession[]>`
       SELECT * FROM practice_sessions
@@ -72,11 +61,9 @@ export const startSession = async (discordId: string, notes?: string): Promise<P
     `;
 
     if (activeSession.length > 0) {
-      console.log(`[DB] Found existing active session for user ${userId}`);
       throw new Error("You already have an active practice session");
     }
 
-    console.log(`[DB] Creating new session for user ${userId}`);
     const result = await sql<[PracticeSession]>`
       INSERT INTO practice_sessions (
         user_id,
@@ -92,26 +79,19 @@ export const startSession = async (discordId: string, notes?: string): Promise<P
       RETURNING *
     `;
 
-    console.log(`[DB] Session created successfully in ${Date.now() - start}ms`);
     return result[0];
   } catch (error) {
     console.error(`[DB] Error in startSession for ${discordId}:`, error);
-    if (error instanceof Error) {
-      console.error(`[DB] Stack trace:`, error.stack);
-    }
     throw error;
   }
 };
 
 export const stopSession = async (discordId: string): Promise<PracticeSession> => {
   console.log(`[DB] Stopping session for Discord ID: ${discordId}`);
-  const start = Date.now();
   
   try {
-    await checkDbConnection();
     const userId = await getUserByDiscordId(discordId);
 
-    console.log(`[DB] Updating session for user ${userId}`);
     const result = await sql<[PracticeSession]>`
       UPDATE practice_sessions 
       SET 
@@ -123,23 +103,17 @@ export const stopSession = async (discordId: string): Promise<PracticeSession> =
     `;
 
     if (!result[0]) {
-      console.log(`[DB] No active session found for user ${userId}`);
       throw new Error("No active practice session found");
     }
 
-    console.log(`[DB] Session stopped successfully in ${Date.now() - start}ms`);
     return result[0];
   } catch (error) {
     console.error(`[DB] Error in stopSession for ${discordId}:`, error);
-    if (error instanceof Error) {
-      console.error(`[DB] Stack trace:`, error.stack);
-    }
     throw error;
   }
 };
 
 export const getDailyStats = async (discordId: string): Promise<number> => {
-  await checkDbConnection();
   const userId = await getUserByDiscordId(discordId);
   const date = DateTime.now().toFormat("yyyy-MM-dd");
   
@@ -152,7 +126,6 @@ export const getDailyStats = async (discordId: string): Promise<number> => {
 };
 
 export const getWeeklyStats = async (discordId: string): Promise<Record<string, number>> => {
-  await checkDbConnection();
   const userId = await getUserByDiscordId(discordId);
   const endDate = DateTime.now();
   const startDate = endDate.minus({ days: 6 });
@@ -177,7 +150,6 @@ export const getWeeklyStats = async (discordId: string): Promise<Record<string, 
 };
 
 export const getMonthlyStats = async (discordId: string): Promise<Record<string, number>> => {
-  await checkDbConnection();
   const userId = await getUserByDiscordId(discordId);
   const now = DateTime.now();
   const startDate = now.startOf("month");
@@ -203,7 +175,6 @@ export const getMonthlyStats = async (discordId: string): Promise<Record<string,
 };
 
 export const setChannels = async (settings: ChannelSettings) => {
-  await checkDbConnection();
   await sql`
     INSERT INTO channel_settings (guild_id, voice_channel_id, text_channel_id)
     VALUES (${settings.guildId}, ${settings.voiceChannelId}, ${settings.textChannelId})
@@ -215,7 +186,6 @@ export const setChannels = async (settings: ChannelSettings) => {
 };
 
 export const getChannels = async (guildId: string): Promise<ChannelSettings | null> => {
-  await checkDbConnection();
   const result = await sql<[ChannelSettings]>`
     SELECT 
       guild_id as "guildId", 
@@ -228,8 +198,6 @@ export const getChannels = async (guildId: string): Promise<ChannelSettings | nu
 };
 
 export const getTopUsers = async (): Promise<Array<{ identity: string; total_duration: number }>> => {
-  await checkDbConnection();
-  
   const results = await sql<Array<{ identity: string; total_duration: number }>>`
     SELECT 
       ui.identity,
@@ -245,7 +213,6 @@ export const getTopUsers = async (): Promise<Array<{ identity: string; total_dur
 };
 
 export const setVanishingChannel = async (channelId: string, guildId: string, duration: number): Promise<void> => {
-  await checkDbConnection();
   await sql`
     INSERT INTO vanishing_channels (channel_id, guild_id, vanish_after, messages_deleted)
     VALUES (${channelId}, ${guildId}, ${duration}, 0)
@@ -257,7 +224,6 @@ export const setVanishingChannel = async (channelId: string, guildId: string, du
 };
 
 export const removeVanishingChannel = async (channelId: string): Promise<void> => {
-  await checkDbConnection();
   await sql`
     DELETE FROM vanishing_channels
     WHERE channel_id = ${channelId}
@@ -265,8 +231,6 @@ export const removeVanishingChannel = async (channelId: string): Promise<void> =
 };
 
 export const getVanishingChannels = async (guildId?: string): Promise<VanishingChannel[]> => {
-  await checkDbConnection();
-  
   if (guildId) {
     return sql<VanishingChannel[]>`
       SELECT * FROM vanishing_channels
@@ -280,7 +244,6 @@ export const getVanishingChannels = async (guildId?: string): Promise<VanishingC
 };
 
 export const getVanishingChannel = async (channelId: string): Promise<VanishingChannel | null> => {
-  await checkDbConnection();
   const result = await sql<[VanishingChannel]>`
     SELECT * FROM vanishing_channels
     WHERE channel_id = ${channelId}
@@ -290,7 +253,6 @@ export const getVanishingChannel = async (channelId: string): Promise<VanishingC
 
 export const updateVanishingChannelStats = async (channelId: string, deletedCount: number): Promise<void> => {
   console.log(`[DB] Updating vanishing channel stats for channel ${channelId} with ${deletedCount} deletions`);
-  await checkDbConnection();
   
   try {
     const result = await sql`
@@ -321,8 +283,6 @@ export const updateVanishingChannelStats = async (channelId: string, deletedCoun
 };
 
 export const getTotalTrackedHours = async (): Promise<number> => {
-  await checkDbConnection();
-  
   const result = await sql<[{ total_seconds: number }]>`
     SELECT COALESCE(SUM(duration), 0) as total_seconds
     FROM practice_sessions
