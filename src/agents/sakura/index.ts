@@ -269,7 +269,6 @@ client.once("ready", () => {
   console.log("Sakura is ready!");
   global.deleteInterval = setInterval(deleteOldMessages, 60000);
 
-  // Set initial status
   updateBotStatus(client);
 });
 
