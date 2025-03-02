@@ -11,83 +11,104 @@ interface MessageScope {
   readMentionsOnly?: boolean;
 }
 
+/**
+ * Represents the configuration for an AI agent
+ */
 export interface AgentConfig {
+  /** The name of the agent */
   name: string;
-  token: string;
+  
+  /** The client ID associated with the agent's Discord bot */
   clientId: string;
-  intents: BitFieldResolvable<GatewayIntentsString, number>;
+  
+  /** The AI model to use for generating responses */
   model?: string;
+  
+  /** Optional initialization function */
   init?(): void;
-  messageScope: MessageScope;
 }
 
-export class Agent extends Client {
-  private config: AgentConfig;
+/**
+ * Message context information for AI processing
+ */
+export interface MessageContext {
+  /** The content of the message */
+  content: string;
+  
+  /** The author's ID */
+  authorId: string;
+  
+  /** The author's username */
+  authorName: string;
+  
+  /** The channel ID where the message was sent */
+  channelId: string;
+  
+  /** Flag indicating if this message mentions the agent */
+  isMention: boolean;
+}
 
-  name: string;
-  clientId: string;
-  model?: string;
+/**
+ * Response from the AI agent
+ */
+export interface AgentResponse {
+  /** The text content to reply with */
+  content: string;
+  
+  /** Optional metadata about the response */
+  metadata?: Record<string, any>;
+}
 
+/**
+ * Core Agent interface that handles AI model communication and context management
+ */
+export class Agent {
+  /** The name of the agent */
+  public readonly name: string;
+  
+  /** The client ID associated with the agent */
+  public readonly clientId: string;
+  
+  /** The AI model being used */
+  public readonly model?: string;
+  
+  /** System prompt for the AI model */
+  private systemPrompt: string;
 
+  /**
+   * Creates a new Agent instance
+   */
   constructor(config: AgentConfig) {
-    super({ intents: config.intents });
+    this.name = config.name;
+    this.clientId = config.clientId;
+    this.model = config.model;
+    this.systemPrompt = "";
 
     if (config.init) {
       config.init();
     }
-
-    this.config = config;
-    this.name = config.name;
-    this.clientId = config.clientId;
-    this.model = config.model;
-
-    this.login(config.token);
-    this.once("ready", () => {
-      console.log(`${config.name} is ready!`);
-    });
-
-    this.on("messageCreate", async (message) => {
-      if (!this.messageInScope(message)) {
-        return;
-      }
-
-      const messageContent = message.content.toLowerCase();
-      console.log(`${this.name} received message: ${messageContent}`);
-
-      if (messageContent.includes("status")) {
-        await this.sendMessage(
-          message.channelId,
-          "**all systems operational**",
-        );
-      }
-    });
   }
 
-  messageInScope(message: Message<boolean>): boolean {
-    const messageScope = this.config.messageScope;
-
-    if (message.author.bot && !messageScope.readBotsMessages) {
-      return false;
-    }
-
-    if (messageScope.readMentionsOnly) {
-      console.log(message.mentions.users);
-      if (
-        !message.cleanContent.includes(this.name) &&
-        !message.mentions.users.has(this.clientId)
-      ) {
-        return false;
-      }
-    }
-    return true;
+  /**
+   * Sets the system prompt for the AI model
+   */
+  setSystemPrompt(prompt: string): void {
+    this.systemPrompt = prompt;
   }
 
-  async sendMessage(channelId: string, message: string): Promise<void> {
-    const channel = await this.channels.fetch(channelId);
-    if (channel?.isTextBased()) {
-      (channel as TextChannel).send(message);
-    } else {
-      console.error(`channel ${channelId} is not a text channel.`);
-    }
+  /**
+   * Gets the current system prompt
+   */
+  getSystemPrompt(): string {
+    return this.systemPrompt;
+  }
+
+  /**
+   * Process a message and generate a response
+   * This should be implemented by specific agent implementations
+   */
+  async processMessage(messageContext: MessageContext): Promise<AgentResponse | null> {
+    // Base implementation doesn't handle messages
+    return null;
   }
 }
