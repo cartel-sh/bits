@@ -88,7 +88,6 @@ export const vanishCommand = {
 
           await setVanishingChannel(interaction.channelId, interaction.guildId, seconds);
           
-          // Update channel topic
           if (interaction.channel instanceof TextChannel) {
             const newTopic = `vanish: ${formatDuration(seconds)}`;
             await interaction.channel.setTopic(newTopic);
@@ -103,7 +102,6 @@ export const vanishCommand = {
         case "off": {
           await removeVanishingChannel(interaction.channelId);
           
-          // Clear vanish info from channel topic
           if (interaction.channel instanceof TextChannel) {
             const currentTopic = interaction.channel.topic || '';
             const newTopic = currentTopic.replace(/vanish: .+?messages/, '').trim();
