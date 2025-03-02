@@ -168,18 +168,16 @@ agent.once("ready", () => {
 });
 
 const handleShutdown = async (signal: string) => {
-  console.log(`\nReceived ${signal}. Starting Kudasai cleanup...`);
+  console.log(`\nReceived ${signal}. Starting cleanup...`);
   try {
-    if (global.kudasaiDeleteInterval) {
-      clearInterval(global.kudasaiDeleteInterval);
-    }
-
-    console.log('Cleaning up Kudasai database connection...');
+    console.log('Cleaning up database connection...');
     await cleanup();
 
-    console.log('Kudasai cleanup completed.');
+    console.log('Cleanup completed. Exiting...');
+    process.exit(0);
   } catch (error) {
-    console.error('Error during Kudasai cleanup:', error);
+    console.error('Error during cleanup:', error);
+    process.exit(1);
   }
 };
 

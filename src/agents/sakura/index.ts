@@ -87,17 +87,14 @@ client.once("ready", () => {
   updateBotStatus(client);
 });
 
-// Handle process termination
 const handleShutdown = async (signal: string) => {
   console.log(`\nReceived ${signal}. Starting cleanup...`);
   try {
-    // Destroy the Discord client connection
     if (client) {
       console.log('Destroying Discord client connection...');
       await client.destroy();
     }
 
-    // Cleanup database connections
     console.log('Cleaning up database connection...');
     await cleanup();
 
