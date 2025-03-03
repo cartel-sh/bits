@@ -8,13 +8,13 @@
     "format": "bunx @biomejs/biome format --write ./src/*",
     "lint": "bunx @biomejs/biome lint --write --unsafe ./src/*",
     "check": "bunx @biomejs/biome check --write ./src/*",
-    "db:init": "bun run src/core/database/init.ts",
-    "kudasai": "bun run src/agents/kudasai/index.ts",
-    "sakura": "bun run src/agents/sakura/index.ts",
-    "kumiko": "bun run src/agents/kumiko/index.ts",
-    "dev:kudasai": "bun run --watch src/agents/kudasai/index.ts",
-    "dev:sakura": "bun run --watch src/agents/sakura/index.ts",
-    "dev:kumiko": "bun run --watch src/agents/kumiko/index.ts"
+    "db:init": "bun run ./core/database/init.ts",
+    "kudasai": "bun run ./agents/kudasai/index.ts",
+    "sakura": "bun run ./agents/sakura/index.ts",
+    "kumiko": "bun run ./agents/kumiko/index.ts",
+    "dev:kudasai": "bun run --watch ./agents/kudasai/index.ts",
+    "dev:sakura": "bun run --watch ./agents/sakura/index.ts",
+    "dev:kumiko": "bun run --watch ./agents/kumiko/index.ts"
   },
   "dependencies": {
     "@discordjs/rest": "^2.4.3",
