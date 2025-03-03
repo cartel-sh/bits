@@ -5,6 +5,9 @@
   "version": "2.0.0",
   "license": "MIT",
   "scripts": {
+    "dashboard:dev": "vite",
+    "dashboard:build": "tsc -b && vite build",
+    "dashboard:preview": "vite preview",
     "format": "bunx @biomejs/biome format --write ./src/*",
     "lint": "bunx @biomejs/biome lint --write --unsafe ./src/*",
     "check": "bunx @biomejs/biome check --write ./src/*",
@@ -17,6 +20,7 @@
     "dev:kumiko": "bun run --watch ./agents/kumiko/index.ts"
   },
   "dependencies": {
+    "solid-js": "^1.9.5",
     "@discordjs/rest": "^2.4.3",
     "@google/generative-ai": "^0.21.0",
     "@supabase/supabase-js": "^2.48.1",
@@ -40,11 +44,14 @@
     "ts-node": "^10.9.2",
     "tsup": "^8.3.6",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.3"
+    "typescript": "~5.7.2",
+    "vite": "^6.2.0",
+    "vite-plugin-solid": "^2.11.2"
   },
   "module": "index.ts",
   "type": "module",
   "trustedDependencies": [
-    "@biomejs/biome"
+    "@biomejs/biome",
+    "esbuild"
   ]
 }
