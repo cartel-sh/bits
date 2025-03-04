@@ -1,6 +1,15 @@
 import { SlashCommandBuilder } from "@discordjs/builders";
-import { type ChatInputCommandInteraction, MessageFlags, Client, ActivityType } from "discord.js";
-import { startSession, stopSession, getTotalTrackedHours } from "../database/db";
+import {
+  ActivityType,
+  type ChatInputCommandInteraction,
+  Client,
+  MessageFlags,
+} from "discord.js";
+import {
+  getTotalTrackedHours,
+  startSession,
+  stopSession,
+} from "../database/db";
 
 const formatDuration = (seconds: number): string => {
   const hours = Math.floor(seconds / 3600);
@@ -20,23 +29,26 @@ export const startCommand = {
     ),
 
   execute: async (interaction: ChatInputCommandInteraction) => {
-    console.log(`[START] User ${interaction.user.tag} initiating practice session`);
-    
+    console.log(
+      `[START] User ${interaction.user.tag} initiating practice session`,
+    );
+
     try {
       await interaction.deferReply();
       const notes = interaction.options.getString("notes") || undefined;
       const session = await startSession(interaction.user.id, notes);
 
       await interaction.editReply({
-        content: `Started your practice session!`,
+        content: "Started your practice session!",
       });
     } catch (error) {
       console.error(`[START] Error for user ${interaction.user.tag}:`, error);
-      
-      const errorMessage = error instanceof Error 
-        ? error.message
-        : "An error occurred while starting the practice session.";
-        
+
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "An error occurred while starting the practice session.";
+
       if (interaction.deferred) {
         await interaction.editReply({ content: errorMessage });
       } else {
@@ -55,8 +67,10 @@ export const stopCommand = {
     .setDescription("Stop the current practice session"),
 
   execute: async (interaction: ChatInputCommandInteraction) => {
-    console.log(`[STOP] User ${interaction.user.tag} stopping practice session`);
-    
+    console.log(
+      `[STOP] User ${interaction.user.tag} stopping practice session`,
+    );
+
     try {
       await interaction.deferReply();
       const session = await stopSession(interaction.user.id);
@@ -74,11 +88,12 @@ export const stopCommand = {
       });
     } catch (error) {
       console.error(`[STOP] Error for user ${interaction.user.tag}:`, error);
-      
-      const errorMessage = error instanceof Error 
-        ? error.message
-        : "An error occurred while stopping the practice session.";
-        
+
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "An error occurred while stopping the practice session.";
+
       if (interaction.deferred) {
         await interaction.editReply({ content: errorMessage });
       } else {

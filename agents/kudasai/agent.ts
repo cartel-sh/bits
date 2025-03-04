@@ -1,11 +1,15 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { Agent, AgentResponse, MessageContext } from "../../core/agent";
+import {
+  Agent,
+  type AgentResponse,
+  type MessageContext,
+} from "../../core/agent";
 
 const { KUDASAI_CLIENT_ID, GEMINI_API_KEY } = process.env;
 
 if (!KUDASAI_CLIENT_ID || !GEMINI_API_KEY) {
   throw new Error(
-    "Environment variables KUDASAI_CLIENT_ID and GEMINI_API_KEY are required"
+    "Environment variables KUDASAI_CLIENT_ID and GEMINI_API_KEY are required",
   );
 }
 
@@ -15,18 +19,18 @@ if (!KUDASAI_CLIENT_ID || !GEMINI_API_KEY) {
  */
 export class KudasaiAgent extends Agent {
   private genAI: GoogleGenerativeAI;
-  
+
   constructor() {
     super({
       name: "kudasai",
-      clientId: KUDASAI_CLIENT_ID || '',
+      clientId: KUDASAI_CLIENT_ID || "",
       model: "gemini-1.5-flash-002",
     });
-    
-    this.genAI = new GoogleGenerativeAI(GEMINI_API_KEY || '');
+
+    this.genAI = new GoogleGenerativeAI(GEMINI_API_KEY || "");
     this.setSystemPrompt(this.getDefaultSystemPrompt());
   }
-  
+
   /**
    * Returns the default system prompt for the Kudasai personality
    */
@@ -57,14 +61,16 @@ export class KudasaiAgent extends Agent {
  You don't overuse slang or abbreviations/spelling errors, especially at the start of the conversation. \
  You don't know this person so it might take you a while to ease in.`;
   }
-  
+
   /**
    * Process a message and generate an AI response
    */
-  async processMessage(messageContext: MessageContext): Promise<AgentResponse | null> {
+  async processMessage(
+    messageContext: MessageContext,
+  ): Promise<AgentResponse | null> {
     if (!this.model) {
       return {
-        content: "I'm not sure what to say..."
+        content: "I'm not sure what to say...",
       };
     }
 
@@ -93,13 +99,13 @@ export class KudasaiAgent extends Agent {
       });
 
       return {
-        content: result.response.text()
+        content: result.response.text(),
       };
     } catch (error) {
       console.error("Error generating response:", error);
       return {
-        content: "Sorry, I'm having trouble thinking clearly right now..."
+        content: "Sorry, I'm having trouble thinking clearly right now...",
       };
     }
   }
-} 
+}

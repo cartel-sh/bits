@@ -3,12 +3,14 @@ import { type ChatInputCommandInteraction, MessageFlags } from "discord.js";
 import {
   getDailyStats,
   getMonthlyStats,
-  getWeeklyStats,
   getTopUsers,
+  getWeeklyStats,
 } from "../database/db";
 
 const formatDuration = (seconds: number): string => {
-  if (!seconds || isNaN(seconds)) return '0h 0m';
+  if (!seconds || Number.isNaN(seconds)) {
+    return "0h 0m";
+  }
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   return `${hours}h ${minutes}m`;
@@ -34,9 +36,7 @@ export const statsCommand = {
         .setDescription("Get your monthly practice stats"),
     )
     .addSubcommand((subcommand) =>
-      subcommand
-        .setName("top")
-        .setDescription("Show top practice durations"),
+      subcommand.setName("top").setDescription("Show top practice durations"),
     ),
 
   execute: async (interaction: ChatInputCommandInteraction) => {
@@ -61,8 +61,13 @@ export const statsCommand = {
         }
         case "monthly": {
           const stats = await getMonthlyStats(userId);
-          const total = Object.values(stats).reduce((sum, d) => sum + (d || 0), 0);
-          content = `Monthly practice summary:\nTotal: ${formatDuration(total)}\n\nDaily breakdown:\n${Object.entries(stats)
+          const total = Object.values(stats).reduce(
+            (sum, d) => sum + (d || 0),
+            0,
+          );
+          content = `Monthly practice summary:\nTotal: ${formatDuration(total)}\n\nDaily breakdown:\n${Object.entries(
+            stats,
+          )
             .sort(([dateA], [dateB]) => dateB.localeCompare(dateA))
             .map(([date, duration]) => `${date}: ${formatDuration(duration)}`)
             .join("\n")}`;
@@ -70,13 +75,13 @@ export const statsCommand = {
         }
         case "top": {
           const topUsers = await getTopUsers();
-          content = "Top Practice Durations:\n\n" + topUsers
-            .filter(user => user.total_duration > 0)
+          content = `Top Practice Durations:\n\n${topUsers
+            .filter((user) => user.total_duration > 0)
             .map((user, index) => {
               return `${user.identity}: ${formatDuration(user.total_duration)}`;
             })
-            .join("\n");
-          
+            .join("\n")}`;
+
           if (!content.includes(":")) {
             content = "No practice sessions recorded yet!";
           }

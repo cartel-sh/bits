@@ -1,10 +1,10 @@
 import { REST } from "@discordjs/rest";
 import { Routes } from "discord-api-types/v9";
 import {
+  ActivityType,
   Client,
   type Interaction,
   MessageFlags,
-  ActivityType,
 } from "discord.js";
 import { startCommand, stopCommand } from "./commands/session";
 import { statsCommand } from "./commands/stats";
@@ -42,7 +42,9 @@ const startBot = async () => {
 };
 
 client.on("interactionCreate", async (interaction: Interaction) => {
-  if (!interaction.isChatInputCommand()) return;
+  if (!interaction.isChatInputCommand()) {
+    return;
+  }
 
   try {
     switch (interaction.commandName) {
@@ -74,10 +76,10 @@ const updateBotStatus = async (client: Client) => {
     const totalHours = await getTotalTrackedHours();
     await client.user?.setActivity({
       name: `${totalHours} hours tracked`,
-      type: ActivityType.Watching
+      type: ActivityType.Watching,
     });
   } catch (error) {
-    console.error('[STATUS] Error updating bot status:', error);
+    console.error("[STATUS] Error updating bot status:", error);
   }
 };
 
@@ -90,14 +92,14 @@ const handleShutdown = async (signal: string) => {
   console.log(`\nReceived ${signal}. Starting cleanup...`);
   try {
     if (client) {
-      console.log('Destroying Discord client connection...');
+      console.log("Destroying Discord client connection...");
       await client.destroy();
     }
 
-    console.log('Cleanup completed. Exiting...');
+    console.log("Cleanup completed. Exiting...");
     process.exit(0);
   } catch (error) {
-    console.error('Error during cleanup:', error);
+    console.error("Error during cleanup:", error);
     process.exit(1);
   }
 };
@@ -106,4 +108,3 @@ process.on("SIGINT", () => handleShutdown("SIGINT"));
 process.on("SIGTERM", () => handleShutdown("SIGTERM"));
 
 startBot();
-

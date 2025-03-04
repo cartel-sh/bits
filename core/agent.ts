@@ -1,9 +1,9 @@
 import {
-    type BitFieldResolvable,
-    Client,
-    type GatewayIntentsString,
-    type Message,
-    type TextChannel,
+  type BitFieldResolvable,
+  Client,
+  type GatewayIntentsString,
+  type Message,
+  type TextChannel,
 } from "discord.js";
 
 interface MessageScope {
@@ -17,13 +17,13 @@ interface MessageScope {
 export interface AgentConfig {
   /** The name of the agent */
   name: string;
-  
+
   /** The client ID associated with the agent's Discord bot */
   clientId: string;
-  
+
   /** The AI model to use for generating responses */
   model?: string;
-  
+
   /** Optional initialization function */
   init?(): void;
 }
@@ -34,16 +34,16 @@ export interface AgentConfig {
 export interface MessageContext {
   /** The content of the message */
   content: string;
-  
+
   /** The author's ID */
   authorId: string;
-  
+
   /** The author's username */
   authorName: string;
-  
+
   /** The channel ID where the message was sent */
   channelId: string;
-  
+
   /** Flag indicating if this message mentions the agent */
   isMention: boolean;
 }
@@ -54,7 +54,7 @@ export interface MessageContext {
 export interface AgentResponse {
   /** The text content to reply with */
   content: string;
-  
+
   /** Optional metadata about the response */
   metadata?: Record<string, any>;
 }
@@ -65,13 +65,13 @@ export interface AgentResponse {
 export class Agent {
   /** The name of the agent */
   public readonly name: string;
-  
+
   /** The client ID associated with the agent */
   public readonly clientId: string;
-  
+
   /** The AI model being used */
   public readonly model?: string;
-  
+
   /** System prompt for the AI model */
   private systemPrompt: string;
 
@@ -107,7 +107,9 @@ export class Agent {
    * Process a message and generate a response
    * This should be implemented by specific agent implementations
    */
-  async processMessage(messageContext: MessageContext): Promise<AgentResponse | null> {
+  async processMessage(
+    messageContext: MessageContext,
+  ): Promise<AgentResponse | null> {
     // Base implementation doesn't handle messages
     return null;
   }

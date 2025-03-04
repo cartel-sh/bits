@@ -9,9 +9,13 @@ function App() {
     <>
       <h1>kuhaku dashboard, to unite the universe</h1>
       <div class="card">
-        <Button variant="outline" onClick={() => setCount((count) => count + 1)}>Click me {count()}</Button>
+        <Button
+          variant="outline"
+          onClick={() => setCount((count) => count + 1)}
+        >
+          Click me {count()}
+        </Button>
       </div>
-
     </>
   );
 }

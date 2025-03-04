@@ -4,7 +4,7 @@ import {
   type ChatInputCommandInteraction,
   MessageFlags,
 } from "discord.js";
-import { setChannels, getChannels } from "../database/db";
+import { getChannels, setChannels } from "../database/db";
 
 export const setChannelsCommand = {
   data: new SlashCommandBuilder()
@@ -96,8 +96,12 @@ export const checkChannelsCommand = {
       return;
     }
 
-    const voiceChannel = await interaction.client.channels.fetch(settings.voiceChannelId);
-    const textChannel = await interaction.client.channels.fetch(settings.textChannelId);
+    const voiceChannel = await interaction.client.channels.fetch(
+      settings.voiceChannelId,
+    );
+    const textChannel = await interaction.client.channels.fetch(
+      settings.textChannelId,
+    );
 
     const response = [
       "Current channel settings:",

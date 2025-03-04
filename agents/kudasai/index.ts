@@ -1,23 +1,23 @@
-import { AgentResponse, MessageContext } from "../../core/agent";
 import { REST } from "@discordjs/rest";
 import { Routes } from "discord-api-types/v9";
-import { 
-  Client, 
-  type Interaction, 
-  MessageFlags, 
+import {
+  Client,
   GatewayIntentBits,
-  Message,
-  type TextChannel
+  type Interaction,
+  type Message,
+  MessageFlags,
+  type TextChannel,
 } from "discord.js";
+import { AgentResponse, type MessageContext } from "../../core/agent";
+import { KudasaiAgent } from "./agent";
 import { vanishCommand } from "./commands/vanish";
 import { deleteOldMessages } from "./utils/messageDeleter";
-import { KudasaiAgent } from "./agent";
 
 const { KUDASAI_TOKEN, KUDASAI_CLIENT_ID } = process.env;
 
 if (!KUDASAI_TOKEN || !KUDASAI_CLIENT_ID) {
   throw new Error(
-    "Environment variables KUDASAI_TOKEN and KUDASAI_CLIENT_ID are required"
+    "Environment variables KUDASAI_TOKEN and KUDASAI_CLIENT_ID are required",
   );
 }
 
@@ -25,15 +25,13 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
-  ]
+    GatewayIntentBits.MessageContent,
+  ],
 });
 
 const kudasaiAgent = new KudasaiAgent();
 
-const commands = [
-  vanishCommand.data.toJSON(),
-];
+const commands = [vanishCommand.data.toJSON()];
 
 const registerCommands = async () => {
   try {
@@ -48,7 +46,9 @@ const registerCommands = async () => {
 };
 
 client.on("interactionCreate", async (interaction: Interaction) => {
-  if (!interaction.isChatInputCommand()) return;
+  if (!interaction.isChatInputCommand()) {
+    return;
+  }
 
   try {
     switch (interaction.commandName) {
@@ -74,7 +74,7 @@ client.on("messageCreate", async (message: Message) => {
     return;
   }
 
-  const isMention = 
+  const isMention =
     message.content.toLowerCase().includes(kudasaiAgent.name) ||
     message.mentions.users.has(kudasaiAgent.clientId);
 
@@ -88,16 +88,16 @@ client.on("messageCreate", async (message: Message) => {
       authorId: message.author.id,
       authorName: message.author.username,
       channelId: message.channelId,
-      isMention: true
+      isMention: true,
     };
 
     try {
       const response = await kudasaiAgent.processMessage(messageContext);
-      
+
       if (response) {
         // Handle response text (may need to split if over 2000 chars)
         const reply = response.content;
-        
+
         if (reply.length > 2000) {
           const replyArray = reply.match(/[\s\S]{1,2000}/g);
 
@@ -112,7 +112,9 @@ client.on("messageCreate", async (message: Message) => {
       }
     } catch (error) {
       console.error("Error handling message:", error);
-      await message.reply("I'm having trouble processing your message right now.");
+      await message.reply(
+        "I'm having trouble processing your message right now.",
+      );
     }
   }
 });
@@ -139,21 +141,24 @@ client.once("ready", () => {
 
   registerCommands();
 
-  global.kudasaiDeleteInterval = setInterval(() => deleteOldMessages(client), 60000);
+  global.kudasaiDeleteInterval = setInterval(
+    () => deleteOldMessages(client),
+    60000,
+  );
 });
 
 const handleShutdown = async (signal: string) => {
   console.log(`\nReceived ${signal}. Starting cleanup...`);
   try {
     if (client) {
-      console.log('Destroying Discord client connection...');
+      console.log("Destroying Discord client connection...");
       await client.destroy();
     }
 
-    console.log('Cleanup completed. Exiting...');
+    console.log("Cleanup completed. Exiting...");
     process.exit(0);
   } catch (error) {
-    console.error('Error during cleanup:', error);
+    console.error("Error during cleanup:", error);
     process.exit(1);
   }
 };
@@ -161,7 +166,7 @@ const handleShutdown = async (signal: string) => {
 process.on("SIGINT", () => handleShutdown("SIGINT"));
 process.on("SIGTERM", () => handleShutdown("SIGTERM"));
 
-client.login(KUDASAI_TOKEN).catch(error => {
+client.login(KUDASAI_TOKEN).catch((error) => {
   console.error("Error connecting to Discord:", error);
   process.exit(1);
 });

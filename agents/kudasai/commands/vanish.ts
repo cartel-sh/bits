@@ -1,38 +1,58 @@
 import { SlashCommandBuilder } from "@discordjs/builders";
-import { type ChatInputCommandInteraction, MessageFlags, PermissionFlagsBits, TextChannel } from "discord.js";
-import { setVanishingChannel, removeVanishingChannel, getVanishingChannel } from "../database/db";
+import {
+  type ChatInputCommandInteraction,
+  MessageFlags,
+  PermissionFlagsBits,
+  TextChannel,
+} from "discord.js";
 import { DateTime } from "luxon";
+import {
+  getVanishingChannel,
+  removeVanishingChannel,
+  setVanishingChannel,
+} from "../database/db";
 
 const parseDuration = (duration: string): number | null => {
   const match = duration.match(/^(\d+)(d|h|m|s)$/);
-  if (!match) return null;
+  if (!match) {
+    return null;
+  }
 
-  const value = parseInt(match[1] || '0');
+  const value = Number.parseInt(match[1] || "0");
   const unit = match[2];
 
   switch (unit) {
-    case 'd': return value * 24 * 60 * 60;
-    case 'h': return value * 60 * 60;
-    case 'm': return value * 60;
-    case 's': return value;
-    default: return null;
+    case "d":
+      return value * 24 * 60 * 60;
+    case "h":
+      return value * 60 * 60;
+    case "m":
+      return value * 60;
+    case "s":
+      return value;
+    default:
+      return null;
   }
 };
 
 const formatDuration = (seconds: number): string => {
   if (seconds >= 86400) {
     return `${Math.floor(seconds / 86400)}d`;
-  } else if (seconds >= 3600) {
+  }
+  if (seconds >= 3600) {
     return `${Math.floor(seconds / 3600)}h`;
-  } else if (seconds >= 60) {
+  }
+  if (seconds >= 60) {
     return `${Math.floor(seconds / 60)}m`;
   }
   return `${seconds}s`;
 };
 
 const formatTimestamp = (date: Date | null): string => {
-  if (!date) return 'Never';
-  return DateTime.fromJSDate(date).toRelative() || 'Unknown';
+  if (!date) {
+    return "Never";
+  }
+  return DateTime.fromJSDate(date).toRelative() || "Unknown";
 };
 
 export const vanishCommand = {
@@ -40,26 +60,26 @@ export const vanishCommand = {
     .setName("vanish")
     .setDescription("Configure message auto-deletion for this channel")
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-    .addSubcommand(subcommand =>
+    .addSubcommand((subcommand) =>
       subcommand
         .setName("set")
         .setDescription("Set auto-deletion duration for this channel")
-        .addStringOption(option =>
+        .addStringOption((option) =>
           option
             .setName("duration")
             .setDescription("Duration (e.g., 6h, 1d, 30m, 60s)")
-            .setRequired(true)
-        )
+            .setRequired(true),
+        ),
     )
-    .addSubcommand(subcommand =>
+    .addSubcommand((subcommand) =>
       subcommand
         .setName("off")
-        .setDescription("Disable auto-deletion for this channel")
+        .setDescription("Disable auto-deletion for this channel"),
     )
-    .addSubcommand(subcommand =>
+    .addSubcommand((subcommand) =>
       subcommand
         .setName("status")
-        .setDescription("Check current auto-deletion settings")
+        .setDescription("Check current auto-deletion settings"),
     ),
 
   execute: async (interaction: ChatInputCommandInteraction) => {
@@ -81,18 +101,23 @@ export const vanishCommand = {
 
           if (!seconds) {
             await interaction.reply({
-              content: "Invalid duration format. Use something like: 6h, 1d, 30m, or 60s",
+              content:
+                "Invalid duration format. Use something like: 6h, 1d, 30m, or 60s",
             });
             return;
           }
 
-          await setVanishingChannel(interaction.channelId, interaction.guildId, seconds);
-          
+          await setVanishingChannel(
+            interaction.channelId,
+            interaction.guildId,
+            seconds,
+          );
+
           if (interaction.channel instanceof TextChannel) {
             const newTopic = `vanish: ${formatDuration(seconds)}`;
             await interaction.channel.setTopic(newTopic);
           }
-          
+
           await interaction.reply({
             content: `Messages in this channel will be automatically deleted after ${durationStr}`,
           });
@@ -101,13 +126,15 @@ export const vanishCommand = {
 
         case "off": {
           await removeVanishingChannel(interaction.channelId);
-          
+
           if (interaction.channel instanceof TextChannel) {
-            const currentTopic = interaction.channel.topic || '';
-            const newTopic = currentTopic.replace(/vanish: .+?messages/, '').trim();
+            const currentTopic = interaction.channel.topic || "";
+            const newTopic = currentTopic
+              .replace(/vanish: .+?messages/, "")
+              .trim();
             await interaction.channel.setTopic(newTopic);
           }
-          
+
           await interaction.reply({
             content: "Auto-deletion has been disabled for this channel",
           });
@@ -125,15 +152,17 @@ export const vanishCommand = {
 
           const duration = formatDuration(config.vanish_after);
           const lastDeletion = formatTimestamp(config.last_deletion);
-          const messagesDeleted = (config.messages_deleted || 0).toLocaleString();
+          const messagesDeleted = (
+            config.messages_deleted || 0
+          ).toLocaleString();
 
           const status = [
-            `**Auto-Deletion Status**`,
+            "**Auto-Deletion Status**",
             `• Messages older than ${duration} will be deleted`,
             `• Total messages deleted: ${messagesDeleted}`,
             `• Last deletion: ${lastDeletion}`,
             `• Active since: ${formatTimestamp(config.created_at)}`,
-          ].join('\n');
+          ].join("\n");
 
           await interaction.reply({
             content: status,
@@ -149,4 +178,4 @@ export const vanishCommand = {
       });
     }
   },
-}; 
+};

@@ -8,10 +8,13 @@
     "dashboard:dev": "vite",
     "dashboard:build": "tsc -b && vite build",
     "dashboard:preview": "vite preview",
-    "format": "bunx @biomejs/biome format --write ./src/*",
-    "lint": "bunx @biomejs/biome lint --write --unsafe ./src/*",
-    "check": "bunx @biomejs/biome check --write ./src/*",
+    "format": "bunx @biomejs/biome format --write ./dash/* ./agents/* ./core/*",
+    "lint": "bunx @biomejs/biome lint --write --unsafe ./dash/* ./agents/* ./core/*",
+    "check": "bunx @biomejs/biome check --write ./dash/* ./agents/* ./core/*",
     "db:init": "bun run ./core/database/init.ts",
+    "db:migrate": "bun run ./core/database/migrate.ts",
+    "db:drizzle": "bunx drizzle-kit generate",
+    "db:test": "bun run ./core/database/test.ts",
     "kudasai": "bun run ./agents/kudasai/index.ts",
     "sakura": "bun run ./agents/sakura/index.ts",
     "kumiko": "bun run ./agents/kumiko/index.ts",
@@ -31,8 +34,10 @@
     "discord-api-types": "^0.37.119",
     "discord.js": "^14.18.0",
     "dotenv": "^16.4.7",
+    "drizzle-orm": "^0.40.0",
     "express": "^4.21.2",
     "luxon": "^3.5.0",
+    "postgres": "^3.4.5",
     "redis": "^4.7.0",
     "solid-js": "^1.9.5",
     "tailwind-merge": "^3.0.2",
@@ -45,6 +50,7 @@
     "@types/node": "^22.13.1",
     "autoprefixer": "^10.4.20",
     "bun-types": "latest",
+    "drizzle-kit": "^0.30.5",
     "instant-cli": "^0.17.12",
     "postcss": "^8.5.3",
     "tailwindcss": "3",
@@ -57,8 +63,5 @@
   },
   "module": "index.ts",
   "type": "module",
-  "trustedDependencies": [
-    "@biomejs/biome",
-    "esbuild"
-  ]
+  "trustedDependencies": ["@biomejs/biome", "esbuild"]
 }

@@ -1,24 +1,34 @@
-import { sql } from "bun";
+import { drizzle } from "drizzle-orm/postgres-js";
+import { migrate } from "drizzle-orm/postgres-js/migrator";
+import postgres from "postgres";
+import * as schema from "./schema";
 
-if (!process.env.DATABASE_URL) {
+const DATABASE_URL = process.env.DATABASE_URL;
+if (!DATABASE_URL) {
   throw new Error("DATABASE_URL is not set");
 }
 
 const initializeDatabase = async () => {
   try {
-    console.log("Starting database initialization...");
+    console.log("Starting database initialization with Drizzle...");
 
-    // Run initial schema
-    const schemaPath = new URL("schema.sql", import.meta.url);
-    const schema = await Bun.file(schemaPath).text();
-    await sql.unsafe(schema);
-    console.log("Database schema initialized successfully");
+    const migrationClient = postgres(DATABASE_URL, { max: 1 });
 
-    // Run migrations
-    const migrationsPath = new URL("migrations.sql", import.meta.url);
-    const migrations = await Bun.file(migrationsPath).text();
-    await sql.unsafe(migrations);
-    console.log("Database migrations completed successfully");
+    const tablesExist = await checkTablesExist(migrationClient);
+
+    if (tablesExist) {
+      console.log("Database tables already exist. Skipping schema creation.");
+    } else {
+      const db = drizzle(migrationClient, { schema });
+
+      console.log("Running migrations...");
+
+      const migrationsPath = "./core/database/migrations";
+      await migrate(db, { migrationsFolder: migrationsPath });
+      console.log("Migrations completed successfully");
+    }
+
+    await migrationClient.end();
 
     console.log("Database initialization completed");
   } catch (error) {
@@ -27,8 +37,24 @@ const initializeDatabase = async () => {
   }
 };
 
-if (process.argv[1] === import.meta.path) {
+async function checkTablesExist(client) {
+  try {
+    const result = await client`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'users'
+      );
+    `;
+    return result[0]?.exists || false;
+  } catch (error) {
+    console.error("Error checking if tables exist:", error);
+    return false;
+  }
+}
+
+if (process.argv[1]?.endsWith("init.ts")) {
   initializeDatabase();
 }
 
-export { initializeDatabase }; 
+export { initializeDatabase };
