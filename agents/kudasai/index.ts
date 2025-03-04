@@ -11,7 +11,6 @@ import {
 } from "discord.js";
 import { vanishCommand } from "./commands/vanish";
 import { deleteOldMessages } from "./utils/messageDeleter";
-import { cleanup } from "./database/connection";
 import { KudasaiAgent } from "./agent";
 
 const { KUDASAI_TOKEN, KUDASAI_CLIENT_ID } = process.env;
@@ -150,9 +149,6 @@ const handleShutdown = async (signal: string) => {
       console.log('Destroying Discord client connection...');
       await client.destroy();
     }
-    
-    console.log('Cleaning up database connection...');
-    await cleanup();
 
     console.log('Cleanup completed. Exiting...');
     process.exit(0);

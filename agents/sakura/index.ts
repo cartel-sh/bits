@@ -8,7 +8,6 @@ import {
 } from "discord.js";
 import { startCommand, stopCommand } from "./commands/session";
 import { statsCommand } from "./commands/stats";
-import { cleanup } from "./database/connection";
 import { getTotalTrackedHours } from "./database/db";
 
 const { SAKURA_TOKEN, SAKURA_CLIENT_ID } = process.env;
@@ -94,9 +93,6 @@ const handleShutdown = async (signal: string) => {
       console.log('Destroying Discord client connection...');
       await client.destroy();
     }
-
-    console.log('Cleaning up database connection...');
-    await cleanup();
 
     console.log('Cleanup completed. Exiting...');
     process.exit(0);

@@ -33,7 +33,6 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "luxon": "^3.5.0",
-    "postgres": "^3.4.5",
     "redis": "^4.7.0",
     "solid-js": "^1.9.5",
     "tailwind-merge": "^3.0.2",

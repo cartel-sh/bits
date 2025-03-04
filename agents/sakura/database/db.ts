@@ -1,5 +1,5 @@
 import { DateTime } from "luxon";
-import { sql } from "./connection";
+import { sql } from "bun";
 
 export interface PracticeSession {
   id: string;
@@ -27,7 +27,7 @@ export const getUserByDiscordId = async (discordId: string): Promise<string> => 
   console.log(`[DB] Getting or creating user for Discord ID: ${discordId}`);
   
   try {
-    const result = await sql<[{ id: string }]>`
+    const result = await sql`
       SELECT get_or_create_user_by_identity('discord', ${discordId}) as id
     `;
     return result[0].id;
@@ -44,7 +44,7 @@ export const startSession = async (discordId: string, notes?: string): Promise<P
     const userId = await getUserByDiscordId(discordId);
     const date = DateTime.now().toFormat("yyyy-MM-dd");
     
-    const activeSession = await sql<PracticeSession[]>`
+    const activeSession = await sql`
       SELECT * FROM practice_sessions
       WHERE user_id = ${userId}
         AND end_time IS NULL
@@ -54,7 +54,7 @@ export const startSession = async (discordId: string, notes?: string): Promise<P
       throw new Error("You already have an active practice session");
     }
 
-    const result = await sql<[PracticeSession]>`
+    const result = await sql`
       INSERT INTO practice_sessions (
         user_id,
         start_time,
@@ -82,7 +82,7 @@ export const stopSession = async (discordId: string): Promise<PracticeSession> =
   try {
     const userId = await getUserByDiscordId(discordId);
 
-    const result = await sql<[PracticeSession]>`
+    const result = await sql`
       UPDATE practice_sessions 
       SET 
         end_time = CURRENT_TIMESTAMP,
@@ -107,7 +107,7 @@ export const getDailyStats = async (discordId: string): Promise<number> => {
   const userId = await getUserByDiscordId(discordId);
   const date = DateTime.now().toFormat("yyyy-MM-dd");
   
-  const result = await sql<[{ total_duration: number }]>`
+  const result = await sql`
     SELECT COALESCE(SUM(duration), 0) as total_duration
     FROM practice_sessions
     WHERE user_id = ${userId} AND date = ${date}
@@ -120,7 +120,7 @@ export const getWeeklyStats = async (discordId: string): Promise<Record<string, 
   const endDate = DateTime.now();
   const startDate = endDate.minus({ days: 6 });
   
-  const results = await sql<Array<{ date: Date; total_duration: number }>>`
+  const results = await sql`
     SELECT date, COALESCE(SUM(duration), 0) as total_duration
     FROM practice_sessions
     WHERE user_id = ${userId}
@@ -145,7 +145,7 @@ export const getMonthlyStats = async (discordId: string): Promise<Record<string,
   const startDate = now.startOf("month");
   const endDate = now.endOf("month");
   
-  const results = await sql<Array<{ date: Date; total_duration: number }>>`
+  const results = await sql`
     SELECT date, COALESCE(SUM(duration), 0) as total_duration
     FROM practice_sessions
     WHERE user_id = ${userId}
@@ -176,7 +176,7 @@ export const setChannels = async (settings: ChannelSettings) => {
 };
 
 export const getChannels = async (guildId: string): Promise<ChannelSettings | null> => {
-  const result = await sql<[ChannelSettings]>`
+  const result = await sql`
     SELECT 
       guild_id as "guildId", 
       voice_channel_id as "voiceChannelId", 
@@ -188,7 +188,7 @@ export const getChannels = async (guildId: string): Promise<ChannelSettings | nu
 };
 
 export const getTopUsers = async (): Promise<Array<{ identity: string; total_duration: number }>> => {
-  const results = await sql<Array<{ identity: string; total_duration: number }>>`
+  const results = await sql`
     SELECT 
       ui.identity,
       COALESCE(SUM(ps.duration), 0) as total_duration
@@ -203,7 +203,7 @@ export const getTopUsers = async (): Promise<Array<{ identity: string; total_dur
 };
 
 export const getTotalTrackedHours = async (): Promise<number> => {
-  const result = await sql<[{ total_seconds: number }]>`
+  const result = await sql`
     SELECT COALESCE(SUM(duration), 0) as total_seconds
     FROM practice_sessions
     WHERE duration IS NOT NULL

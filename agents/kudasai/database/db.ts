@@ -1,4 +1,4 @@
-import { sql } from "./connection";
+import { sql } from "bun";
 
 export interface VanishingChannel {
   channel_id: string;
@@ -30,19 +30,19 @@ export const removeVanishingChannel = async (channelId: string): Promise<void> =
 
 export const getVanishingChannels = async (guildId?: string): Promise<VanishingChannel[]> => {
   if (guildId) {
-    return sql<VanishingChannel[]>`
+    return sql`
       SELECT * FROM vanishing_channels
       WHERE guild_id = ${guildId}
     `;
   }
   
-  return sql<VanishingChannel[]>`
+  return sql`
     SELECT * FROM vanishing_channels
   `;
 };
 
 export const getVanishingChannel = async (channelId: string): Promise<VanishingChannel | null> => {
-  const result = await sql<[VanishingChannel]>`
+  const result = await sql`
     SELECT * FROM vanishing_channels
     WHERE channel_id = ${channelId}
   `;
