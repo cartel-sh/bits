@@ -18,9 +18,11 @@
     "kudasai": "bun run ./agents/kudasai/index.ts",
     "sakura": "bun run ./agents/sakura/index.ts",
     "kumiko": "bun run ./agents/kumiko/index.ts",
+    "applications": "bun run ./agents/applications/index.ts",
     "dev:kudasai": "bun run --watch ./agents/kudasai/index.ts",
     "dev:sakura": "bun run --watch ./agents/sakura/index.ts",
-    "dev:kumiko": "bun run --watch ./agents/kumiko/index.ts"
+    "dev:kumiko": "bun run --watch ./agents/kumiko/index.ts",
+    "dev:applications": "bun run --watch ./agents/applications/index.ts"
   },
   "dependencies": {
     "@discordjs/rest": "^2.4.3",
@@ -37,6 +39,7 @@
     "drizzle-orm": "^0.40.0",
     "express": "^4.21.2",
     "luxon": "^3.5.0",
+    "node-telegram-bot-api": "^0.66.0",
     "postgres": "^3.4.5",
     "redis": "^4.7.0",
     "solid-js": "^1.9.5",
