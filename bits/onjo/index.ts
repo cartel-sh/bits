@@ -16,6 +16,8 @@ import {
   ChannelSelectMenuBuilder,
   MentionableSelectMenuBuilder,
   type MessageActionRowComponentBuilder,
+  type APIMessageComponent,
+  ButtonStyle,
 } from "discord.js";
 import express from "express";
 import { setupRoutes } from "./server";
@@ -28,16 +30,11 @@ import {
   deleteApplication as deleteApplicationFromDb
 } from "./database/db";
 
-const {
-  APPLICATIONS_TOKEN,
-  APPLICATIONS_CLIENT_ID,
-  APPLICATIONS_PORT,
-  APPLICATIONS_CHANNEL_ID,
-} = process.env;
+const { ONJO_TOKEN, ONJO_CLIENT_ID, ONJO_PORT, ONJO_CHANNEL_ID } = process.env;
 
-if (!APPLICATIONS_TOKEN || !APPLICATIONS_CLIENT_ID || !APPLICATIONS_CHANNEL_ID) {
+if (!ONJO_TOKEN || !ONJO_CLIENT_ID || !ONJO_CHANNEL_ID) {
   throw new Error(
-    "Environment variables APPLICATIONS_TOKEN, APPLICATIONS_CLIENT_ID, and APPLICATIONS_CHANNEL_ID are required",
+    "Environment variables ONJO_TOKEN, ONJO_CLIENT_ID, and ONJO_CHANNEL_ID are required",
   );
 }
 
@@ -54,11 +51,11 @@ app.use(express.json());
 setupRoutes(app, client);
 
 client.on("interactionCreate", async (interaction: Interaction) => {
-  if (!interaction.isButton()) return;
+  if (!interaction.isButton()) { return; }
 
   try {
     const [action, applicationNumberStr] = interaction.customId.split("_");
-    const applicationNumber = parseInt(applicationNumberStr);
+    const applicationNumber = Number.parseInt(applicationNumberStr);
 
     const application = await getApplicationByNumber(applicationNumber);
     if (!application) {
@@ -114,6 +111,29 @@ client.on("interactionCreate", async (interaction: Interaction) => {
             : 0x2b2d31, // Dark gray
       );
 
+    const mapComponent = (c: APIMessageComponent) => {
+      switch (c.type) {
+        case ComponentType.Button:
+          return ButtonBuilder.from(c).setDisabled(true);
+        case ComponentType.StringSelect:
+          return StringSelectMenuBuilder.from(c);
+        case ComponentType.UserSelect:
+          return UserSelectMenuBuilder.from(c);
+        case ComponentType.RoleSelect:
+          return RoleSelectMenuBuilder.from(c);
+        case ComponentType.ChannelSelect:
+          return ChannelSelectMenuBuilder.from(c);
+        case ComponentType.MentionableSelect:
+          return MentionableSelectMenuBuilder.from(c);
+        default:
+          return new ButtonBuilder()
+            .setCustomId("noop")
+            .setLabel("noop")
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(true);
+      }
+    };
+
     const APPROVAL_THRESHOLD = 7;
     const REJECTION_THRESHOLD = 7;
 
@@ -128,24 +148,7 @@ client.on("interactionCreate", async (interaction: Interaction) => {
 
       const disabledButtons = new ActionRowBuilder<MessageActionRowComponentBuilder>()
         .addComponents(
-          interaction.message.components[0].components.map((c) => {
-            switch (c.type) {
-              case ComponentType.Button:
-                return ButtonBuilder.from(c).setDisabled(true);
-              case ComponentType.StringSelect:
-                return StringSelectMenuBuilder.from(c);
-              case ComponentType.UserSelect:
-                return UserSelectMenuBuilder.from(c);
-              case ComponentType.RoleSelect:
-                return RoleSelectMenuBuilder.from(c);
-              case ComponentType.ChannelSelect:
-                return ChannelSelectMenuBuilder.from(c);
-              case ComponentType.MentionableSelect:
-                return MentionableSelectMenuBuilder.from(c);
-              default:
-                return ButtonBuilder.from(c as any);
-            }
-          }),
+          interaction.message.components[0].components.map((c) => mapComponent(c as APIMessageComponent)),
         );
 
       await interaction.update({ embeds: [updatedEmbed], components: [disabledButtons] });
@@ -160,24 +163,7 @@ client.on("interactionCreate", async (interaction: Interaction) => {
 
       const disabledButtons = new ActionRowBuilder<MessageActionRowComponentBuilder>()
         .addComponents(
-          interaction.message.components[0].components.map((c) => {
-            switch (c.type) {
-              case ComponentType.Button:
-                return ButtonBuilder.from(c).setDisabled(true);
-              case ComponentType.StringSelect:
-                return StringSelectMenuBuilder.from(c);
-              case ComponentType.UserSelect:
-                return UserSelectMenuBuilder.from(c);
-              case ComponentType.RoleSelect:
-                return RoleSelectMenuBuilder.from(c);
-              case ComponentType.ChannelSelect:
-                return ChannelSelectMenuBuilder.from(c);
-              case ComponentType.MentionableSelect:
-                return MentionableSelectMenuBuilder.from(c);
-              default:
-                return ButtonBuilder.from(c as any);
-            }
-          }),
+          interaction.message.components[0].components.map((c) => mapComponent(c as APIMessageComponent)),
         );
 
       await interaction.update({ embeds: [updatedEmbed], components: [disabledButtons] });
@@ -208,7 +194,7 @@ client.on("interactionCreate", async (interaction: Interaction) => {
 client.once("ready", () => {
   console.log("Onjo is ready!");
 
-  const port = APPLICATIONS_PORT || 3001;
+  const port = ONJO_PORT || 3001;
   app.listen(port, () => {
     console.log(`Webhook server listening on port ${port}`);
   });
@@ -233,7 +219,7 @@ const handleShutdown = async (signal: string) => {
 process.on("SIGINT", () => handleShutdown("SIGINT"));
 process.on("SIGTERM", () => handleShutdown("SIGTERM"));
 
-client.login(APPLICATIONS_TOKEN).catch((error) => {
+client.login(ONJO_TOKEN).catch((error) => {
   console.error("Error connecting to Discord:", error);
   process.exit(1);
 });

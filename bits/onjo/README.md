@@ -22,9 +22,11 @@ Discord bot that receives and manages membership applications with Telegram rela
 ONJO_TOKEN=your_discord_bot_token
 ONJO_CLIENT_ID=your_discord_application_client_id
 # Optional Telegram relay
-TELEGRAM_BOT_TOKEN=your_telegram_bot_token
-TELEGRAM_CHAT_ID=@your_channel_or_id
+ONJO_TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+ONJO_TELEGRAM_CHANNEL_ID=your_channel_or_id
 DATABASE_URL=postgres://user:pass@host:5432/db
+ONJO_CHANNEL_ID=your_discord_channel_id_for_applications
+ONJO_PORT=3001
 ```
 
 4. Run database migrations (in repo root)

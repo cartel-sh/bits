@@ -2,15 +2,17 @@ import type { Express } from "express";
 import type { Client, TextChannel } from "discord.js";
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
 import TelegramBot from "node-telegram-bot-api";
-import { 
-  createApplication, 
-  getNextApplicationNumber 
-} from "./database/db";
+import { createApplication, getNextApplicationNumber } from "./database/db";
 
-const { TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, WEBHOOK_SECRET } = process.env;
+const {
+  ONJO_TELEGRAM_BOT_TOKEN,
+  ONJO_TELEGRAM_CHANNEL_ID,
+  ONJO_WEBHOOK_SECRET,
+  ONJO_CHANNEL_ID,
+} = process.env;
 
-const telegramBot = TELEGRAM_BOT_TOKEN
-  ? new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: false })
+const telegramBot = ONJO_TELEGRAM_BOT_TOKEN
+  ? new TelegramBot(ONJO_TELEGRAM_BOT_TOKEN, { polling: false })
   : null;
 
 interface ApplicationPayload {
@@ -32,9 +34,9 @@ export function setupRoutes(
 ) {
   app.post("/api/application", async (req, res) => {
     try {
-      if (WEBHOOK_SECRET) {
+      if (ONJO_WEBHOOK_SECRET) {
         const authHeader = req.headers.authorization;
-        if (!authHeader || authHeader !== `Bearer ${WEBHOOK_SECRET}`) {
+        if (!authHeader || authHeader !== `Bearer ${ONJO_WEBHOOK_SECRET}`) {
           return res.status(401).json({ error: "Unauthorized" });
         }
       }
@@ -46,16 +48,17 @@ export function setupRoutes(
         return res.status(400).json({ error: "Missing required fields" });
       }
 
-      const channel = await client.channels.fetch(
-        process.env.APPLICATIONS_CHANNEL_ID!,
-      );
+      if (!ONJO_CHANNEL_ID) {
+        throw new Error("Environment variable ONJO_CHANNEL_ID is required");
+      }
+      const channel = await client.channels.fetch(ONJO_CHANNEL_ID);
 
       if (!channel?.isTextBased()) {
         throw new Error("Invalid Discord channel");
       }
 
       const applicationNumber = await getNextApplicationNumber();
-      
+
       const embed = new EmbedBuilder()
         .setTitle(`APPLICATION #${applicationNumber}`)
         .setColor(0x2b2d31) // Discord dark theme color
@@ -121,7 +124,7 @@ export function setupRoutes(
         signature: data.signature,
       });
 
-      if (telegramBot && TELEGRAM_CHAT_ID) {
+      if (telegramBot && ONJO_TELEGRAM_CHANNEL_ID) {
         const telegramMessage = `
 <b>New Cartel Application #${applicationNumber}</b>
 
@@ -139,7 +142,7 @@ ${data.motivation}
         `.trim();
 
         try {
-          await telegramBot.sendMessage(TELEGRAM_CHAT_ID, telegramMessage, {
+          await telegramBot.sendMessage(ONJO_TELEGRAM_CHANNEL_ID, telegramMessage, {
             parse_mode: "HTML",
             disable_web_page_preview: true,
           });
@@ -152,7 +155,7 @@ ${data.motivation}
       res.json({
         success: true,
         messageId: discordMessage.id,
-        sentTo: TELEGRAM_CHAT_ID ? ["discord", "telegram"] : ["discord"],
+        sentTo: ONJO_TELEGRAM_CHANNEL_ID ? ["discord", "telegram"] : ["discord"],
       });
     } catch (error) {
       console.error("Error handling application:", error);
