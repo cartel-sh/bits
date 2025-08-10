@@ -1,4 +1,4 @@
-# Applications Bot
+# Onjo Bot
 
 Discord bot that receives and manages membership applications with Telegram relay support.
 
@@ -18,7 +18,7 @@ Discord bot that receives and manages membership applications with Telegram rela
 2. Create Telegram bot (optional) and get token
 3. Configure environment variables
 4. Run database migrations (after adding to main repo)
-5. Start the bot: `bun run applications`
+5. Start the bot: `bun run onjo`
 
 ## API Endpoint
 

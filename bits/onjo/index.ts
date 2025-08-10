@@ -9,10 +9,17 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   PermissionFlagsBits,
+  ComponentType,
+  StringSelectMenuBuilder,
+  UserSelectMenuBuilder,
+  RoleSelectMenuBuilder,
+  ChannelSelectMenuBuilder,
+  MentionableSelectMenuBuilder,
+  type MessageActionRowComponentBuilder,
 } from "discord.js";
 import express from "express";
 import { setupRoutes } from "./server";
-import { 
+import {
   getApplicationByMessageId,
   getApplicationByNumber,
   addVote,
@@ -52,7 +59,7 @@ client.on("interactionCreate", async (interaction: Interaction) => {
   try {
     const [action, applicationNumberStr] = interaction.customId.split("_");
     const applicationNumber = parseInt(applicationNumberStr);
-    
+
     const application = await getApplicationByNumber(applicationNumber);
     if (!application) {
       await interaction.reply({
@@ -73,7 +80,7 @@ client.on("interactionCreate", async (interaction: Interaction) => {
 
       await deleteApplicationFromDb(application.id);
       await interaction.message.delete();
-      
+
       await interaction.reply({
         content: `Application #${applicationNumber} deleted successfully.`,
         flags: MessageFlags.Ephemeral,
@@ -87,14 +94,14 @@ client.on("interactionCreate", async (interaction: Interaction) => {
 
     await addVote(application.id, userId, userName, voteType);
     const votes = await getVotes(application.id);
-    
+
     const originalEmbed = interaction.message.embeds[0];
     const status = votes.approvalCount > votes.rejectionCount
       ? "Leaning Positive"
       : votes.rejectionCount > votes.approvalCount
         ? "Leaning Negative"
         : "Pending Review";
-    
+
     const updatedEmbed = EmbedBuilder.from(originalEmbed)
       .setFooter({
         text: `${status} • ${votes.approvalCount} approvals | ${votes.rejectionCount} rejections`,
@@ -109,50 +116,84 @@ client.on("interactionCreate", async (interaction: Interaction) => {
 
     const APPROVAL_THRESHOLD = 7;
     const REJECTION_THRESHOLD = 7;
-    
+
     if (votes.approvalCount >= APPROVAL_THRESHOLD && application.status === "pending") {
       await updateApplicationStatus(application.id, "approved");
       updatedEmbed
-        .setTitle(originalEmbed.title?.replace("APPLICATION", "APPROVED"))
+        .setTitle(
+          originalEmbed.title?.replace("APPLICATION", "APPROVED") ?? null,
+        )
         .setColor(0x57f287)
         .setFooter({ text: `Approved • ${votes.approvalCount} votes in favor` });
-      
-      const disabledButtons = ActionRowBuilder.from(interaction.message.components[0])
-        .setComponents(
-          interaction.message.components[0].components.map(c => 
-            ButtonBuilder.from(c).setDisabled(true)
-          )
+
+      const disabledButtons = new ActionRowBuilder<MessageActionRowComponentBuilder>()
+        .addComponents(
+          interaction.message.components[0].components.map((c) => {
+            switch (c.type) {
+              case ComponentType.Button:
+                return ButtonBuilder.from(c).setDisabled(true);
+              case ComponentType.StringSelect:
+                return StringSelectMenuBuilder.from(c);
+              case ComponentType.UserSelect:
+                return UserSelectMenuBuilder.from(c);
+              case ComponentType.RoleSelect:
+                return RoleSelectMenuBuilder.from(c);
+              case ComponentType.ChannelSelect:
+                return ChannelSelectMenuBuilder.from(c);
+              case ComponentType.MentionableSelect:
+                return MentionableSelectMenuBuilder.from(c);
+              default:
+                return ButtonBuilder.from(c as any);
+            }
+          }),
         );
-      
+
       await interaction.update({ embeds: [updatedEmbed], components: [disabledButtons] });
     } else if (votes.rejectionCount >= REJECTION_THRESHOLD && application.status === "pending") {
       await updateApplicationStatus(application.id, "rejected");
       updatedEmbed
-        .setTitle(originalEmbed.title?.replace("APPLICATION", "REJECTED"))
+        .setTitle(
+          originalEmbed.title?.replace("APPLICATION", "REJECTED") ?? null,
+        )
         .setColor(0xed4245)
         .setFooter({ text: `Rejected • ${votes.rejectionCount} votes against` });
-      
-      const disabledButtons = ActionRowBuilder.from(interaction.message.components[0])
-        .setComponents(
-          interaction.message.components[0].components.map(c => 
-            ButtonBuilder.from(c).setDisabled(true)
-          )
+
+      const disabledButtons = new ActionRowBuilder<MessageActionRowComponentBuilder>()
+        .addComponents(
+          interaction.message.components[0].components.map((c) => {
+            switch (c.type) {
+              case ComponentType.Button:
+                return ButtonBuilder.from(c).setDisabled(true);
+              case ComponentType.StringSelect:
+                return StringSelectMenuBuilder.from(c);
+              case ComponentType.UserSelect:
+                return UserSelectMenuBuilder.from(c);
+              case ComponentType.RoleSelect:
+                return RoleSelectMenuBuilder.from(c);
+              case ComponentType.ChannelSelect:
+                return ChannelSelectMenuBuilder.from(c);
+              case ComponentType.MentionableSelect:
+                return MentionableSelectMenuBuilder.from(c);
+              default:
+                return ButtonBuilder.from(c as any);
+            }
+          }),
         );
-      
+
       await interaction.update({ embeds: [updatedEmbed], components: [disabledButtons] });
     } else {
       await interaction.update({ embeds: [updatedEmbed] });
     }
 
-    const voteMessage = voteType === "approve" 
+    const voteMessage = voteType === "approve"
       ? `You voted YAY on application #${applicationNumber}`
       : `You voted NAY on application #${applicationNumber}`;
-    
+
     await interaction.followUp({
       content: voteMessage,
       flags: MessageFlags.Ephemeral,
     });
-    
+
   } catch (error) {
     console.error("Error handling button interaction:", error);
     if (!interaction.replied && !interaction.deferred) {
@@ -165,7 +206,7 @@ client.on("interactionCreate", async (interaction: Interaction) => {
 });
 
 client.once("ready", () => {
-  console.log("Applications bot is ready!");
+  console.log("Onjo is ready!");
 
   const port = APPLICATIONS_PORT || 3001;
   app.listen(port, () => {
