@@ -6,7 +6,7 @@
 - kudasai - staff & role manager
 - sakura - kuhaku librarian
 
-agents use discord bots to interact with discord, matrix, and [google gemini js library](https://github.com/google-gemini/generative-ai-js) to query generative AI models.
+bits use discord bots to interact with discord, matrix, and [google gemini js library](https://github.com/google-gemini/generative-ai-js) to query generative AI models.
 
 ### Installation
 
@@ -22,7 +22,7 @@ git clone https://github.com/kuhaku-xyz/bits && cd bits && bun install
 
 ### Environment Variables
 
-Before running the agents, you need to set up the following environment variables in a `.env` file at the root of the project:
+Before running the bits, you need to set up the following environment variables in a `.env` file at the root of the project:
 
 ```env
 # general
@@ -43,7 +43,7 @@ KUDASAI_CLIENT_ID=your_kudasai_client_id_here
 
 ### Usage
 
-You can run the different agents using the following commands:
+You can run the different bits using the following commands:
 
 - To run Kudasai:
   ```sh

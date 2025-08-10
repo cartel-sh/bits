@@ -141,3 +141,72 @@ export interface ChannelSetting
   extends InferSelectModel<typeof channelSettings> {}
 export interface NewChannelSetting
   extends InferInsertModel<typeof channelSettings> {}
+
+export const applications = pgTable(
+  "applications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    applicationNumber: integer("application_number").notNull().unique(),
+    messageId: text("message_id").notNull().unique(),
+    walletAddress: text("wallet_address").notNull(),
+    ensName: text("ens_name"),
+    github: text("github"),
+    farcaster: text("farcaster"),
+    lens: text("lens"),
+    twitter: text("twitter"),
+    excitement: text("excitement").notNull(),
+    motivation: text("motivation").notNull(),
+    signature: text("signature").notNull(),
+    status: text("status").default("pending"),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }).defaultNow(),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+  },
+  (table) => {
+    return {
+      statusIdx: index("applications_status_idx").on(table.status),
+      walletIdx: index("applications_wallet_idx").on(table.walletAddress),
+    };
+  },
+);
+
+export const applicationVotes = pgTable(
+  "application_votes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    applicationId: uuid("application_id")
+      .notNull()
+      .references(() => applications.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull(),
+    userName: text("user_name"),
+    voteType: text("vote_type").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({ columns: [table.applicationId, table.userId] }),
+      applicationIdx: index("votes_application_idx").on(table.applicationId),
+    };
+  },
+);
+
+export const applicationsRelations = relations(applications, ({ many }) => ({
+  votes: many(applicationVotes),
+}));
+
+export const applicationVotesRelations = relations(
+  applicationVotes,
+  ({ one }) => ({
+    application: one(applications, {
+      fields: [applicationVotes.applicationId],
+      references: [applications.id],
+    }),
+  }),
+);
+
+export interface Application extends InferSelectModel<typeof applications> {}
+export interface NewApplication
+  extends InferInsertModel<typeof applications> {}
+export interface ApplicationVote
+  extends InferSelectModel<typeof applicationVotes> {}
+export interface NewApplicationVote
+  extends InferInsertModel<typeof applicationVotes> {}
