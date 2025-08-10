@@ -2,67 +2,62 @@
 
 ### Overview
 
-- kumiko - matrix <-> discord relay (via [mautrix](https://github.com/mautrix/discord))
-- kudasai - staff & role manager
-- sakura - cartel librarian
+This monorepo hosts multiple bits that work together:
 
-bits use discord bots to interact with discord, matrix, and [google gemini js library](https://github.com/google-gemini/generative-ai-js) to query generative AI models.
+- Kudasai — Staff utilities and lightweight AI assistant for Discord (mentions + moderation helpers)
+- Sakura — Practice session tracker with slash commands and stats
+- Onjo — Membership applications intake and voting (with Telegram relay)
 
-### Installation
+Bits use Discord bots, a shared Postgres database (via Drizzle), and optional AI models.
 
-1. Install Bun
+### Setup
+
+1) Install Bun
+
 ```sh
 curl -fsSL https://bun.sh/install | bash
 ```
 
-2. Clone & Install
+2) Clone & install deps
+
 ```sh
-git clone https://github.com/cartel-sh/bits && cd bits && bun install
+git clone https://github.com/cartel-sh/bits
+cd bits
+bun install
 ```
 
-### Environment Variables
+3) Configure environment
 
-Before running the bits, you need to set up the following environment variables in a `.env` file at the root of the project:
+Create a `.env` in the project root. At minimum:
 
 ```env
-# general
-GEMINI_API_KEY=your_gemini_api_key_here
-
-# sakura
-SAKURA_TOKEN=your_sakura_token_here
-SAKURA_CLIENT_ID=your_sakura_client_id_here
-
-# kudasai
-KUDASAI_TOKEN=your_kudasai_token_here
-KUDASAI_CLIENT_ID=your_kudasai_client_id_here
+DATABASE_URL=postgres://user:pass@host:5432/db
+# Bit-specific variables live in each bit's README
 ```
 
-- `SAKURA_TOKEN` and `SAKURA_CLIENT_ID`: Required for the Sakura agent to authenticate with Discord.
-- `KUDASAI_TOKEN` and `KUDASAI_CLIENT_ID`: Required for the Kudasai agent to authenticate with Discord.
-- `GEMINI_API_KEY`: Required for Kudasai to use the Google Generative AI model.
+4) Initialize the database
 
-### Usage
+```sh
+bun run db:init    # or: bun run db:migrate
+```
 
-You can run the different bits using the following commands:
+### Running
 
-- To run Kudasai:
-  ```sh
-  bun run kudasai
-  ```
+Use the per-bit READMEs for specific tokens, commands, and behavior:
 
-- To run Sakura:
-  ```sh
-  bun run sakura
-  ```
+- bits/kudasai/README.md — Kudasai (AI + moderation helpers)
+- bits/sakura/README.md — Sakura (practice tracker)
+- bits/onjo/README.md — Onjo (applications + voting)
 
-For development with hot reloading:
+Common scripts:
 
-- Kudasai:
-  ```sh
-  bun run dev:kudasai
-  ```
+```sh
+# Run a bit
+bun run kudasai
+bun run sakura
+bun run onjo
 
-- Sakura:
-  ```sh
-  bun run dev:sakura
-  ```
+# Dev (hot reloading where available)
+bun run dev:kudasai
+bun run dev:sakura
+```

@@ -16,8 +16,18 @@ Discord bot that receives and manages membership applications with Telegram rela
 
 1. Create Discord bot and get token/client ID
 2. Create Telegram bot (optional) and get token
-3. Configure environment variables
-4. Run database migrations (after adding to main repo)
+3. Configure environment variables in repo `.env`:
+
+```env
+ONJO_TOKEN=your_discord_bot_token
+ONJO_CLIENT_ID=your_discord_application_client_id
+# Optional Telegram relay
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+TELEGRAM_CHAT_ID=@your_channel_or_id
+DATABASE_URL=postgres://user:pass@host:5432/db
+```
+
+4. Run database migrations (in repo root)
 5. Start the bot: `bun run onjo`
 
 ## API Endpoint
