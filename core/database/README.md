@@ -1,4 +1,4 @@
-Kuhaku uses Drizzle for database operations. The database schema is defined in TypeScript, providing type-safe access to the database.
+Cartel uses Drizzle for database operations. The database schema is defined in TypeScript, providing type-safe access to the database.
 
 ## Setup
 

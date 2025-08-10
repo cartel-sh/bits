@@ -7,7 +7,7 @@ function App() {
 
   return (
     <>
-      <h1>kuhaku dashboard, to unite the universe</h1>
+      <h1>cartel dashboard, to unite the universe</h1>
       <div class="card">
         <Button
           variant="outline"

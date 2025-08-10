@@ -1,8 +1,8 @@
 {
   "name": "bits",
   "author": "kualta <contact@kualta.dev>",
-  "description": "kuhaku agents",
-  "version": "2.0.0",
+  "description": "cartel agents",
+  "version": "3.0.0",
   "license": "MIT",
   "scripts": {
     "dashboard:dev": "vite",

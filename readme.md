@@ -1,10 +1,10 @@
-## kuhaku bits
+## cartel bits
 
 ### Overview
 
 - kumiko - matrix <-> discord relay (via [mautrix](https://github.com/mautrix/discord))
 - kudasai - staff & role manager
-- sakura - kuhaku librarian
+- sakura - cartel librarian
 
 bits use discord bots to interact with discord, matrix, and [google gemini js library](https://github.com/google-gemini/generative-ai-js) to query generative AI models.
 
@@ -17,7 +17,7 @@ curl -fsSL https://bun.sh/install | bash
 
 2. Clone & Install
 ```sh
-git clone https://github.com/kuhaku-xyz/bits && cd bits && bun install
+git clone https://github.com/cartel-sh/bits && cd bits && bun install
 ```
 
 ### Environment Variables
