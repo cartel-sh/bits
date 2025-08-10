@@ -1,14 +1,14 @@
-CREATE TABLE "application_votes" (
+CREATE TABLE IF NOT EXISTS "application_votes" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"application_id" uuid NOT NULL,
 	"user_id" text NOT NULL,
 	"user_name" text,
 	"vote_type" text NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now(),
-	CONSTRAINT "application_votes_application_id_user_id_pk" PRIMARY KEY("application_id","user_id")
+	CONSTRAINT "application_votes_application_id_user_id_unique" UNIQUE("application_id","user_id")
 );
 --> statement-breakpoint
-CREATE TABLE "applications" (
+CREATE TABLE IF NOT EXISTS "applications" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"application_number" integer NOT NULL,
 	"message_id" text NOT NULL,
@@ -28,7 +28,15 @@ CREATE TABLE "applications" (
 	CONSTRAINT "applications_message_id_unique" UNIQUE("message_id")
 );
 --> statement-breakpoint
-ALTER TABLE "application_votes" ADD CONSTRAINT "application_votes_application_id_applications_id_fk" FOREIGN KEY ("application_id") REFERENCES "public"."applications"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-CREATE INDEX "votes_application_idx" ON "application_votes" USING btree ("application_id");--> statement-breakpoint
-CREATE INDEX "applications_status_idx" ON "applications" USING btree ("status");--> statement-breakpoint
-CREATE INDEX "applications_wallet_idx" ON "applications" USING btree ("wallet_address");
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'application_votes_application_id_applications_id_fk'
+    ) THEN
+        ALTER TABLE "application_votes" ADD CONSTRAINT "application_votes_application_id_applications_id_fk" FOREIGN KEY ("application_id") REFERENCES "public"."applications"("id") ON DELETE cascade ON UPDATE no action;
+    END IF;
+END
+$$;--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "votes_application_idx" ON "application_votes" USING btree ("application_id");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "applications_status_idx" ON "applications" USING btree ("status");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "applications_wallet_idx" ON "applications" USING btree ("wallet_address");
