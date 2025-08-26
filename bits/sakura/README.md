@@ -20,7 +20,8 @@ Add to `.env` in the repo root:
 ```env
 SAKURA_TOKEN=your_discord_bot_token
 SAKURA_CLIENT_ID=your_discord_application_client_id
-DATABASE_URL=postgres://user:pass@host:5432/db
+API_KEY=your_cartel_api_key # Optional, if authentication is required
+API_URL=https://api.cartel.sh # Optional, defaults to api.cartel.sh
 ```
 
 ## Commands
@@ -31,7 +32,8 @@ bun run sakura
 
 ## Notes
 
-- Practice data is stored in `users`, `user_identities`, and `practice_sessions` tables (see `core/database/schema.ts`).
-- Presence updates display tracked totals via `getTotalTrackedHours()`.
+- Practice data is managed through the Cartel API at `api.cartel.sh`
+- Presence updates display tracked totals via the API's `getTotalTrackedHours()` endpoint
+- All data operations are handled through the API SDK
 
 

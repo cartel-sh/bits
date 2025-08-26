@@ -56,7 +56,7 @@ export interface AgentResponse {
   content: string;
 
   /** Optional metadata about the response */
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 /**

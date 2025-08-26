@@ -4,7 +4,12 @@ import {
   type ChatInputCommandInteraction,
   MessageFlags,
 } from "discord.js";
-import { getChannels, setChannels } from "../database/db";
+import { CartelDBClient } from "@cartel-sh/api";
+
+const client = new CartelDBClient(
+  process.env.API_URL || "https://api.cartel.sh",
+  process.env.API_KEY
+);
 
 export const setChannelsCommand = {
   data: new SlashCommandBuilder()
@@ -55,11 +60,8 @@ export const setChannelsCommand = {
     }
 
     try {
-      await setChannels({
-        guildId,
-        voiceChannelId: voiceChannel.id,
-        textChannelId: textChannel.id,
-      });
+      await client.setChannel(guildId, "voice", voiceChannel.id);
+      await client.setChannel(guildId, "text", textChannel.id);
 
       await interaction.reply({
         content: `Set voice channel to ${voiceChannel.name} and text channel to ${textChannel.name}`,
@@ -87,21 +89,24 @@ export const checkChannelsCommand = {
       return;
     }
 
-    const settings = await getChannels(interaction.guildId);
+    const channels = await client.getGuildChannels(interaction.guildId);
 
-    if (!settings) {
+    if (!channels || channels.length === 0) {
       await interaction.reply({
         content: "No channels have been set up for this server.",
       });
       return;
     }
 
-    const voiceChannel = await interaction.client.channels.fetch(
-      settings.voiceChannelId,
-    );
-    const textChannel = await interaction.client.channels.fetch(
-      settings.textChannelId,
-    );
+    const voiceChannelSetting = channels.find((c: any) => c.key === "voice");
+    const textChannelSetting = channels.find((c: any) => c.key === "text");
+
+    const voiceChannel = voiceChannelSetting
+      ? await interaction.client.channels.fetch(voiceChannelSetting.channelId)
+      : null;
+    const textChannel = textChannelSetting
+      ? await interaction.client.channels.fetch(textChannelSetting.channelId)
+      : null;
 
     const response = [
       "Current channel settings:",

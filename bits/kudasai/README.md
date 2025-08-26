@@ -19,12 +19,8 @@ Create entries in `.env` at the repo root:
 KUDASAI_TOKEN=your_discord_bot_token
 KUDASAI_CLIENT_ID=your_discord_application_client_id
 GEMINI_API_KEY=your_google_generative_ai_key
-```
-
-Also ensure the shared database is configured:
-
-```env
-DATABASE_URL=postgres://user:pass@host:5432/db
+API_KEY=your_cartel_api_key # Optional, if authentication is required
+API_URL=https://api.cartel.sh # Optional, defaults to api.cartel.sh
 ```
 
 ## Commands
@@ -47,7 +43,8 @@ bun run dev:kudasai
 
 ## Notes
 
-- Vanish statistics are stored in `vanishing_channels` (see `core/database/schema.ts`).
-- The AI persona and model are defined in `bits/kudasai/agent.ts`. Adjust as needed.
+- Vanish statistics are managed through the Cartel API at `api.cartel.sh`
+- The AI persona and model are defined in `bits/kudasai/agent.ts`. Adjust as needed
+- All data operations are handled through the API SDK
 
 

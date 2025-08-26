@@ -8,7 +8,12 @@ import {
 } from "discord.js";
 import { startCommand, stopCommand } from "./commands/session";
 import { statsCommand } from "./commands/stats";
-import { getTotalTrackedHours } from "./database/db";
+import { CartelDBClient } from "@cartel-sh/api";
+
+const apiClient = new CartelDBClient(
+  process.env.API_URL || "https://api.cartel.sh",
+  process.env.API_KEY
+);
 
 const { SAKURA_TOKEN, SAKURA_CLIENT_ID } = process.env;
 if (!SAKURA_TOKEN || !SAKURA_CLIENT_ID) {
@@ -17,7 +22,7 @@ if (!SAKURA_TOKEN || !SAKURA_CLIENT_ID) {
   );
 }
 
-const client = new Client({
+const discordClient = new Client({
   intents: ["Guilds", "GuildMessages", "MessageContent"],
 });
 
@@ -29,7 +34,7 @@ const commands = [
 
 const startBot = async () => {
   try {
-    await client.login(SAKURA_TOKEN);
+    await discordClient.login(SAKURA_TOKEN);
 
     const rest = new REST({ version: "9" }).setToken(SAKURA_TOKEN);
     await rest.put(Routes.applicationCommands(SAKURA_CLIENT_ID), {
@@ -41,7 +46,7 @@ const startBot = async () => {
   }
 };
 
-client.on("interactionCreate", async (interaction: Interaction) => {
+discordClient.on("interactionCreate", async (interaction: Interaction) => {
   if (!interaction.isChatInputCommand()) {
     return;
   }
@@ -71,10 +76,10 @@ client.on("interactionCreate", async (interaction: Interaction) => {
   }
 });
 
-const updateBotStatus = async (client: Client) => {
+const updateBotStatus = async (discordClient: Client) => {
   try {
-    const totalHours = await getTotalTrackedHours();
-    await client.user?.setActivity({
+    const totalHours = await apiClient.getTotalTrackedHours();
+    await discordClient.user?.setActivity({
       name: `${totalHours} hours tracked`,
       type: ActivityType.Watching,
     });
@@ -83,17 +88,17 @@ const updateBotStatus = async (client: Client) => {
   }
 };
 
-client.once("ready", () => {
+discordClient.once("ready", () => {
   console.log("Sakura is ready!");
-  updateBotStatus(client);
+  updateBotStatus(discordClient);
 });
 
 const handleShutdown = async (signal: string) => {
   console.log(`\nReceived ${signal}. Starting cleanup...`);
   try {
-    if (client) {
+    if (discordClient) {
       console.log("Destroying Discord client connection...");
-      await client.destroy();
+      await discordClient.destroy();
     }
 
     console.log("Cleanup completed. Exiting...");

@@ -1,8 +1,15 @@
 import { type Client, TextChannel } from "discord.js";
-import {
-  getVanishingChannels,
-  updateVanishingChannelStats,
-} from "../database/db";
+import { CartelDBClient } from "@cartel-sh/api";
+
+const client = new CartelDBClient(
+  process.env.API_URL || "https://api.cartel.sh",
+  process.env.API_KEY
+);
+
+interface DiscordError {
+  code?: string | number;
+  message?: string;
+}
 
 const formatDurationForTopic = (seconds: number): string => {
   if (seconds >= 86400) {
@@ -19,7 +26,7 @@ const formatDurationForTopic = (seconds: number): string => {
 
 let isDeletionInProgress = false;
 
-export const deleteOldMessages = async (client: Client) => {
+export const deleteOldMessages = async (discordClient: Client) => {
   if (isDeletionInProgress) {
     console.log(
       "[VANISH] Previous deletion run still in progress, skipping this run",
@@ -29,23 +36,23 @@ export const deleteOldMessages = async (client: Client) => {
 
   isDeletionInProgress = true;
   try {
-    const channels = await getVanishingChannels();
+    const channels = await client.getVanishingChannels();
     console.log(
       `[VANISH] Checking ${channels.length} channels for old messages`,
     );
 
     for (const config of channels) {
       try {
-        const channel = await client.channels.fetch(config.channel_id);
+        const channel = await discordClient.channels.fetch(config.channelId);
         if (!(channel instanceof TextChannel)) {
           console.log(
-            `[VANISH] Channel ${config.channel_id} is not a text channel, skipping`,
+            `[VANISH] Channel ${config.channelId} is not a text channel, skipping`,
           );
           continue;
         }
 
         console.log(
-          `[VANISH] Processing channel: ${channel.name} (${channel.id}), vanish after: ${config.vanish_after}s`,
+          `[VANISH] Processing channel: ${channel.name} (${channel.id}), vanish after: ${config.vanishAfter}s`,
         );
 
         let lastId: string | undefined;
@@ -70,7 +77,7 @@ export const deleteOldMessages = async (client: Client) => {
           const oldMessages = messages.filter(
             (msg) =>
               !msg.pinned && // Don't delete pinned messages
-              (now - msg.createdTimestamp) / 1000 > config.vanish_after,
+              (now - msg.createdTimestamp) / 1000 > config.vanishAfter,
           );
 
           if (oldMessages.size > 0) {
@@ -103,14 +110,15 @@ export const deleteOldMessages = async (client: Client) => {
                     );
 
                     await new Promise((resolve) => setTimeout(resolve, 200));
-                  } catch (singleDeleteError: any) {
-                    if (singleDeleteError.code === "10008") {
+                  } catch (singleDeleteError: unknown) {
+                    const error = singleDeleteError as DiscordError;
+                    if (error.code === "10008") {
                       // Unknown Message
                       console.log(
                         `[VANISH] Message ${messageId} already deleted, counting as success`,
                       );
                       batchDeleted++;
-                    } else if (singleDeleteError.code === "50013") {
+                    } else if (error.code === "50013") {
                       // Missing Permissions
                       console.error(
                         `[VANISH] Missing permissions to delete messages in ${channel.name}`,
@@ -118,7 +126,7 @@ export const deleteOldMessages = async (client: Client) => {
                       totalErrors++;
                       shouldContinue = false;
                       break;
-                    } else if (singleDeleteError.code === "429") {
+                    } else if (error.code === "429") {
                       // Rate Limited
                       console.log(
                         "[VANISH] Rate limited, waiting longer between deletions",
@@ -129,8 +137,8 @@ export const deleteOldMessages = async (client: Client) => {
                       console.error(
                         `[VANISH] Error deleting message ${messageId}:`,
                         {
-                          error: singleDeleteError.message,
-                          code: singleDeleteError.code,
+                          error: error.message,
+                          code: error.code,
                           channel: channel.name,
                           channelId: channel.id,
                         },
@@ -162,7 +170,7 @@ export const deleteOldMessages = async (client: Client) => {
                 console.log(
                   `[VANISH] Updating stats for ${channel.name} with ${batchDeleted} deletions`,
                 );
-                await updateVanishingChannelStats(channel.id, batchDeleted);
+                await client.updateVanishingChannelStats(channel.id, batchDeleted);
                 console.log(
                   `[VANISH] Successfully updated stats for ${channel.name}`,
                 );
@@ -182,7 +190,7 @@ export const deleteOldMessages = async (client: Client) => {
           if (lastMessage) {
             lastId = lastMessage.id;
             shouldContinue =
-              (now - lastMessage.createdTimestamp) / 1000 > config.vanish_after;
+              (now - lastMessage.createdTimestamp) / 1000 > config.vanishAfter;
           } else {
             shouldContinue = false;
           }
@@ -195,8 +203,8 @@ export const deleteOldMessages = async (client: Client) => {
         });
 
         try {
-          const vanishDuration = formatDurationForTopic(config.vanish_after);
-          const totalMessages = config.messages_deleted;
+          const vanishDuration = formatDurationForTopic(config.vanishAfter);
+          const totalMessages = config.messagesDeleted;
           const newTopic = `vanish: ${vanishDuration}, vanished ${totalMessages.toLocaleString()} messages`;
           await channel.setTopic(newTopic);
           console.log(`[VANISH] Updated channel topic for ${channel.name}`);
@@ -206,18 +214,19 @@ export const deleteOldMessages = async (client: Client) => {
             topicError,
           );
         }
-      } catch (channelError: any) {
-        if (channelError.code === "10003") {
+      } catch (channelError: unknown) {
+        const error = channelError as DiscordError;
+        if (error.code === "10003") {
           // Unknown Channel
           console.log(
-            `[VANISH] Channel ${config.channel_id} no longer exists, skipping`,
+            `[VANISH] Channel ${config.channelId} no longer exists, skipping`,
           );
         } else {
           console.error(
-            `[VANISH] Error processing channel ${config.channel_id}:`,
+            `[VANISH] Error processing channel ${config.channelId}:`,
             {
-              error: channelError.message,
-              code: channelError.code,
+              error: error.message,
+              code: error.code,
             },
           );
         }

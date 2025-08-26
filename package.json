@@ -22,9 +22,12 @@
     "dev:kudasai": "bun run --watch ./bits/kudasai/index.ts",
     "dev:sakura": "bun run --watch ./bits/sakura/index.ts",
     "dev:kumiko": "bun run --watch ./bits/kumiko/index.ts",
-    "dev:onjo": "bun run --watch ./bits/onjo/index.ts"
+    "dev:onjo": "bun run --watch ./bits/onjo/index.ts",
+    "bots": "bun run ./scripts/run-all-bots.ts",
+    "dev:bots": "bun run --watch ./scripts/run-all-bots.ts"
   },
   "dependencies": {
+    "@cartel-sh/api": "^2.1.1",
     "@discordjs/rest": "^2.4.3",
     "@google/generative-ai": "^0.21.0",
     "@kobalte/core": "^0.13.9",
@@ -36,11 +39,9 @@
     "discord-api-types": "^0.37.119",
     "discord.js": "^14.18.0",
     "dotenv": "^16.4.7",
-    "drizzle-orm": "^0.40.0",
     "express": "^4.21.2",
     "luxon": "^3.5.0",
     "node-telegram-bot-api": "^0.66.0",
-    "postgres": "^3.4.5",
     "redis": "^4.7.0",
     "solid-js": "^1.9.5",
     "tailwind-merge": "^3.0.2",
@@ -51,6 +52,7 @@
     "@types/bun": "^1.2.2",
     "@types/express": "^5.0.0",
     "@types/node": "^22.13.1",
+    "@types/node-telegram-bot-api": "^0.64.10",
     "autoprefixer": "^10.4.20",
     "bun-types": "latest",
     "drizzle-kit": "^0.30.5",

@@ -1,11 +1,11 @@
 import { SlashCommandBuilder } from "@discordjs/builders";
 import { type ChatInputCommandInteraction, MessageFlags } from "discord.js";
-import {
-  getDailyStats,
-  getMonthlyStats,
-  getTopUsers,
-  getWeeklyStats,
-} from "../database/db";
+import { CartelDBClient } from "@cartel-sh/api";
+
+const client = new CartelDBClient(
+  process.env.API_URL || "https://api.cartel.sh",
+  process.env.API_KEY
+);
 
 const formatDuration = (seconds: number): string => {
   if (!seconds || Number.isNaN(seconds)) {
@@ -47,12 +47,12 @@ export const statsCommand = {
       let content = "";
       switch (subcommand) {
         case "daily": {
-          const duration = await getDailyStats(userId);
+          const duration = await client.getDailyStats(userId);
           content = `Today's practice duration: ${formatDuration(duration)}`;
           break;
         }
         case "weekly": {
-          const stats = await getWeeklyStats(userId);
+          const stats = await client.getWeeklyStats(userId);
           content = `Weekly practice summary:\n${Object.entries(stats)
             .sort(([dateA], [dateB]) => dateB.localeCompare(dateA))
             .map(([date, duration]) => `${date}: ${formatDuration(duration)}`)
@@ -60,7 +60,7 @@ export const statsCommand = {
           break;
         }
         case "monthly": {
-          const stats = await getMonthlyStats(userId);
+          const stats = await client.getMonthlyStats(userId);
           const total = Object.values(stats).reduce(
             (sum, d) => sum + (d || 0),
             0,
@@ -74,11 +74,11 @@ export const statsCommand = {
           break;
         }
         case "top": {
-          const topUsers = await getTopUsers();
+          const topUsers = await client.getTopUsers();
           content = `Top Practice Durations:\n\n${topUsers
-            .filter((user) => user.total_duration > 0)
+            .filter((user) => user.totalDuration > 0)
             .map((user, index) => {
-              return `${user.identity}: ${formatDuration(user.total_duration)}`;
+              return `${user.identity}: ${formatDuration(user.totalDuration)}`;
             })
             .join("\n")}`;
 

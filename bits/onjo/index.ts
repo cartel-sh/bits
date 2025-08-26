@@ -1,34 +1,32 @@
 import { REST } from "@discordjs/rest";
 import { Routes } from "discord-api-types/v9";
 import {
-  Client,
-  GatewayIntentBits,
-  type Interaction,
-  MessageFlags,
-  EmbedBuilder,
+  type APIMessageComponent,
   ActionRowBuilder,
   ButtonBuilder,
-  PermissionFlagsBits,
-  ComponentType,
-  StringSelectMenuBuilder,
-  UserSelectMenuBuilder,
-  RoleSelectMenuBuilder,
+  ButtonStyle,
   ChannelSelectMenuBuilder,
+  Client,
+  ComponentType,
+  EmbedBuilder,
+  GatewayIntentBits,
+  type Interaction,
   MentionableSelectMenuBuilder,
   type MessageActionRowComponentBuilder,
-  type APIMessageComponent,
-  ButtonStyle,
+  MessageFlags,
+  PermissionFlagsBits,
+  RoleSelectMenuBuilder,
+  StringSelectMenuBuilder,
+  UserSelectMenuBuilder,
 } from "discord.js";
 import express from "express";
+import { CartelDBClient } from "@cartel-sh/api";
+
+const client = new CartelDBClient(
+  process.env.API_URL || "https://api.cartel.sh",
+  process.env.API_KEY
+);
 import { setupRoutes } from "./server";
-import {
-  getApplicationByMessageId,
-  getApplicationByNumber,
-  addVote,
-  getVotes,
-  updateApplicationStatus,
-  deleteApplication as deleteApplicationFromDb
-} from "./database/db";
 
 const { ONJO_TOKEN, ONJO_CLIENT_ID, ONJO_PORT, ONJO_CHANNEL_ID } = process.env;
 
@@ -38,7 +36,7 @@ if (!ONJO_TOKEN || !ONJO_CLIENT_ID || !ONJO_CHANNEL_ID) {
   );
 }
 
-const client = new Client({
+const discordClient = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
@@ -48,16 +46,18 @@ const client = new Client({
 
 const app = express();
 app.use(express.json());
-setupRoutes(app, client);
+setupRoutes(app, discordClient);
 
-client.on("interactionCreate", async (interaction: Interaction) => {
-  if (!interaction.isButton()) { return; }
+discordClient.on("interactionCreate", async (interaction: Interaction) => {
+  if (!interaction.isButton()) {
+    return;
+  }
 
   try {
     const [action, applicationNumberStr] = interaction.customId.split("_");
     const applicationNumber = Number.parseInt(applicationNumberStr);
 
-    const application = await getApplicationByNumber(applicationNumber);
+    const application = await client.getApplicationByNumber(applicationNumber);
     if (!application) {
       await interaction.reply({
         content: "Application not found.",
@@ -67,7 +67,9 @@ client.on("interactionCreate", async (interaction: Interaction) => {
     }
 
     if (action === "delete") {
-      if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
+      if (
+        !interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)
+      ) {
         await interaction.reply({
           content: "You need administrator permissions to delete applications.",
           flags: MessageFlags.Ephemeral,
@@ -75,7 +77,7 @@ client.on("interactionCreate", async (interaction: Interaction) => {
         return;
       }
 
-      await deleteApplicationFromDb(application.id);
+      await client.deleteApplication(application.id);
       await interaction.message.delete();
 
       await interaction.reply({
@@ -89,15 +91,16 @@ client.on("interactionCreate", async (interaction: Interaction) => {
     const userId = interaction.user.id;
     const userName = interaction.user.username;
 
-    await addVote(application.id, userId, userName, voteType);
-    const votes = await getVotes(application.id);
+    await client.addVote(application.id, userId, userName, voteType);
+    const votes = await client.getVotes(application.id);
 
     const originalEmbed = interaction.message.embeds[0];
-    const status = votes.approvalCount > votes.rejectionCount
-      ? "Leaning Positive"
-      : votes.rejectionCount > votes.approvalCount
-        ? "Leaning Negative"
-        : "Pending Review";
+    const status =
+      votes.approvalCount > votes.rejectionCount
+        ? "Leaning Positive"
+        : votes.rejectionCount > votes.approvalCount
+          ? "Leaning Negative"
+          : "Pending Review";
 
     const updatedEmbed = EmbedBuilder.from(originalEmbed)
       .setFooter({
@@ -137,49 +140,69 @@ client.on("interactionCreate", async (interaction: Interaction) => {
     const APPROVAL_THRESHOLD = 7;
     const REJECTION_THRESHOLD = 7;
 
-    if (votes.approvalCount >= APPROVAL_THRESHOLD && application.status === "pending") {
-      await updateApplicationStatus(application.id, "approved");
+    if (
+      votes.approvalCount >= APPROVAL_THRESHOLD &&
+      application.status === "pending"
+    ) {
+      await client.updateApplicationStatus(application.id, "approved");
       updatedEmbed
         .setTitle(
           originalEmbed.title?.replace("APPLICATION", "APPROVED") ?? null,
         )
         .setColor(0x57f287)
-        .setFooter({ text: `Approved • ${votes.approvalCount} votes in favor` });
+        .setFooter({
+          text: `Approved • ${votes.approvalCount} votes in favor`,
+        });
 
-      const disabledButtons = new ActionRowBuilder<MessageActionRowComponentBuilder>()
-        .addComponents(
-          interaction.message.components[0].components.map((c) => mapComponent(c as APIMessageComponent)),
+      const disabledButtons =
+        new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
+          interaction.message.components[0].components.map((c) =>
+            mapComponent(c as APIMessageComponent),
+          ),
         );
 
-      await interaction.update({ embeds: [updatedEmbed], components: [disabledButtons] });
-    } else if (votes.rejectionCount >= REJECTION_THRESHOLD && application.status === "pending") {
-      await updateApplicationStatus(application.id, "rejected");
+      await interaction.update({
+        embeds: [updatedEmbed],
+        components: [disabledButtons],
+      });
+    } else if (
+      votes.rejectionCount >= REJECTION_THRESHOLD &&
+      application.status === "pending"
+    ) {
+      await client.updateApplicationStatus(application.id, "rejected");
       updatedEmbed
         .setTitle(
           originalEmbed.title?.replace("APPLICATION", "REJECTED") ?? null,
         )
         .setColor(0xed4245)
-        .setFooter({ text: `Rejected • ${votes.rejectionCount} votes against` });
+        .setFooter({
+          text: `Rejected • ${votes.rejectionCount} votes against`,
+        });
 
-      const disabledButtons = new ActionRowBuilder<MessageActionRowComponentBuilder>()
-        .addComponents(
-          interaction.message.components[0].components.map((c) => mapComponent(c as APIMessageComponent)),
+      const disabledButtons =
+        new ActionRowBuilder<MessageActionRowComponentBuilder>().addComponents(
+          interaction.message.components[0].components.map((c) =>
+            mapComponent(c as APIMessageComponent),
+          ),
         );
 
-      await interaction.update({ embeds: [updatedEmbed], components: [disabledButtons] });
+      await interaction.update({
+        embeds: [updatedEmbed],
+        components: [disabledButtons],
+      });
     } else {
       await interaction.update({ embeds: [updatedEmbed] });
     }
 
-    const voteMessage = voteType === "approve"
-      ? `You voted YAY on application #${applicationNumber}`
-      : `You voted NAY on application #${applicationNumber}`;
+    const voteMessage =
+      voteType === "approve"
+        ? `You voted YAY on application #${applicationNumber}`
+        : `You voted NAY on application #${applicationNumber}`;
 
     await interaction.followUp({
       content: voteMessage,
       flags: MessageFlags.Ephemeral,
     });
-
   } catch (error) {
     console.error("Error handling button interaction:", error);
     if (!interaction.replied && !interaction.deferred) {
@@ -191,7 +214,7 @@ client.on("interactionCreate", async (interaction: Interaction) => {
   }
 });
 
-client.once("ready", () => {
+discordClient.once("ready", () => {
   console.log("Onjo is ready!");
 
   const port = ONJO_PORT || 3001;
@@ -203,9 +226,9 @@ client.once("ready", () => {
 const handleShutdown = async (signal: string) => {
   console.log(`\nReceived ${signal}. Starting cleanup...`);
   try {
-    if (client) {
+    if (discordClient) {
       console.log("Destroying Discord client connection...");
-      await client.destroy();
+      await discordClient.destroy();
     }
 
     console.log("Cleanup completed. Exiting...");
@@ -219,7 +242,7 @@ const handleShutdown = async (signal: string) => {
 process.on("SIGINT", () => handleShutdown("SIGINT"));
 process.on("SIGTERM", () => handleShutdown("SIGTERM"));
 
-client.login(ONJO_TOKEN).catch((error) => {
+discordClient.login(ONJO_TOKEN).catch((error) => {
   console.error("Error connecting to Discord:", error);
   process.exit(1);
 });

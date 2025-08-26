@@ -9,7 +9,7 @@ Discord bot that receives and manages membership applications with Telegram rela
 - Relays applications to Telegram channel
 - Interactive voting with YAY/NAY buttons
 - Admin-only delete functionality
-- Persistent vote tracking in database
+- Persistent vote tracking via API
 - Auto-approval/rejection at configurable thresholds
 
 ## Setup
@@ -21,16 +21,17 @@ Discord bot that receives and manages membership applications with Telegram rela
 ```env
 ONJO_TOKEN=your_discord_bot_token
 ONJO_CLIENT_ID=your_discord_application_client_id
+ONJO_CHANNEL_ID=your_discord_channel_id_for_applications
+ONJO_PORT=3001
 # Optional Telegram relay
 ONJO_TELEGRAM_BOT_TOKEN=your_telegram_bot_token
 ONJO_TELEGRAM_CHANNEL_ID=your_channel_or_id
-DATABASE_URL=postgres://user:pass@host:5432/db
-ONJO_CHANNEL_ID=your_discord_channel_id_for_applications
-ONJO_PORT=3001
+# API configuration
+API_KEY=your_cartel_api_key # Optional, if authentication is required
+API_URL=https://api.cartel.sh # Optional, defaults to api.cartel.sh
 ```
 
-4. Run database migrations (in repo root)
-5. Start the bot: `bun run onjo`
+4. Start the bot: `bun run onjo`
 
 ## API Endpoint
 
@@ -58,4 +59,10 @@ Expected payload:
 - **NAY**: Vote to reject
 - **Delete**: Remove application (admin only)
 
-Auto-decision thresholds: 3 votes
+Auto-decision thresholds: 7 votes
+
+## Notes
+
+- Application data is managed through the Cartel API at `api.cartel.sh`
+- All voting and application operations are handled through the API SDK
+- The webhook server runs on the configured port (default 3001)

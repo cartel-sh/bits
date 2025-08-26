@@ -5,11 +5,12 @@ import {
   Client,
   MessageFlags,
 } from "discord.js";
-import {
-  getTotalTrackedHours,
-  startSession,
-  stopSession,
-} from "../database/db";
+import { CartelDBClient } from "@cartel-sh/api";
+
+const apiClient = new CartelDBClient(
+  process.env.API_URL || "https://api.cartel.sh",
+  process.env.API_KEY
+);
 
 const formatDuration = (seconds: number): string => {
   const hours = Math.floor(seconds / 3600);
@@ -36,7 +37,7 @@ export const startCommand = {
     try {
       await interaction.deferReply();
       const notes = interaction.options.getString("notes") || undefined;
-      const session = await startSession(interaction.user.id, notes);
+      const session = await apiClient.startSession({ discordId: interaction.user.id, notes });
 
       await interaction.editReply({
         content: "Started your practice session!",
@@ -73,12 +74,12 @@ export const stopCommand = {
 
     try {
       await interaction.deferReply();
-      const session = await stopSession(interaction.user.id);
+      const session = await apiClient.stopSession({ discordId: interaction.user.id });
       const duration = session.duration || 0;
 
-      const client = interaction.client;
-      const totalHours = await getTotalTrackedHours();
-      await client.user?.setActivity({
+      const discordClient = interaction.client;
+      const totalHours = await apiClient.getTotalTrackedHours();
+      await discordClient.user?.setActivity({
         name: `${totalHours.toLocaleString()}h of practice`,
         type: ActivityType.Custom,
       });
