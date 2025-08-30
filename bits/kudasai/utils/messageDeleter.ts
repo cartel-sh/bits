@@ -1,7 +1,7 @@
 import { type Client, TextChannel } from "discord.js";
-import { CartelDBClient } from "@cartel-sh/api";
+import { CartelClient } from "@cartel-sh/api";
 
-const client = new CartelDBClient(
+const cartel = new CartelClient(
   process.env.API_URL || "https://api.cartel.sh",
   process.env.API_KEY
 );
@@ -36,7 +36,7 @@ export const deleteOldMessages = async (discordClient: Client) => {
 
   isDeletionInProgress = true;
   try {
-    const channels = await client.getVanishingChannels();
+    const channels = await cartel.vanish.get();
     console.log(
       `[VANISH] Checking ${channels.length} channels for old messages`,
     );
@@ -170,7 +170,7 @@ export const deleteOldMessages = async (discordClient: Client) => {
                 console.log(
                   `[VANISH] Updating stats for ${channel.name} with ${batchDeleted} deletions`,
                 );
-                await client.updateVanishingChannelStats(channel.id, batchDeleted);
+                await cartel.vanish.updateStats(channel.id, batchDeleted);
                 console.log(
                   `[VANISH] Successfully updated stats for ${channel.name}`,
                 );

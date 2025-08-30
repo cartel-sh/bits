@@ -1,8 +1,8 @@
 import { SlashCommandBuilder } from "@discordjs/builders";
 import { type ChatInputCommandInteraction, MessageFlags } from "discord.js";
-import { CartelDBClient } from "@cartel-sh/api";
+import { CartelClient } from "@cartel-sh/api";
 
-const client = new CartelDBClient(
+const cartel = new CartelClient(
   process.env.API_URL || "https://api.cartel.sh",
   process.env.API_KEY
 );
@@ -47,12 +47,13 @@ export const statsCommand = {
       let content = "";
       switch (subcommand) {
         case "daily": {
-          const duration = await client.getDailyStats(userId);
+          const dailyStatsData = await cartel.practice.getStats('daily', { discordId: userId });
+          const duration = dailyStatsData.totalDuration;
           content = `Today's practice duration: ${formatDuration(duration)}`;
           break;
         }
         case "weekly": {
-          const stats = await client.getWeeklyStats(userId);
+          const stats = await cartel.practice.getStats('weekly', { discordId: userId });
           content = `Weekly practice summary:\n${Object.entries(stats)
             .sort(([dateA], [dateB]) => dateB.localeCompare(dateA))
             .map(([date, duration]) => `${date}: ${formatDuration(duration)}`)
@@ -60,7 +61,7 @@ export const statsCommand = {
           break;
         }
         case "monthly": {
-          const stats = await client.getMonthlyStats(userId);
+          const stats = await cartel.practice.getStats('monthly', { discordId: userId });
           const total = Object.values(stats).reduce(
             (sum, d) => sum + (d || 0),
             0,
@@ -74,7 +75,7 @@ export const statsCommand = {
           break;
         }
         case "top": {
-          const topUsers = await client.getTopUsers();
+          const topUsers = await cartel.practice.leaderboard();
           content = `Top Practice Durations:\n\n${topUsers
             .filter((user) => user.totalDuration > 0)
             .map((user, index) => {

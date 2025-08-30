@@ -6,9 +6,9 @@ import {
   TextChannel,
 } from "discord.js";
 import { DateTime } from "luxon";
-import { CartelDBClient } from "@cartel-sh/api";
+import { CartelClient } from "@cartel-sh/api";
 
-const client = new CartelDBClient(
+const cartel = new CartelClient(
   process.env.API_URL || "https://api.cartel.sh",
   process.env.API_KEY
 );
@@ -108,11 +108,11 @@ export const vanishCommand = {
             return;
           }
 
-          await client.setVanishingChannel(
-            interaction.channelId,
-            interaction.guildId,
-            seconds,
-          );
+          await cartel.vanish.create({
+            channelId: interaction.channelId,
+            guildId: interaction.guildId,
+            duration: seconds,
+          });
 
           if (interaction.channel instanceof TextChannel) {
             const newTopic = `vanish: ${formatDuration(seconds)}`;
@@ -126,7 +126,7 @@ export const vanishCommand = {
         }
 
         case "off": {
-          await client.removeVanishingChannel(interaction.channelId);
+          await cartel.vanish.remove(interaction.channelId);
 
           if (interaction.channel instanceof TextChannel) {
             const currentTopic = interaction.channel.topic || "";
@@ -143,7 +143,7 @@ export const vanishCommand = {
         }
 
         case "status": {
-          const config = await client.getVanishingChannel(interaction.channelId);
+          const config = await cartel.vanish.get(interaction.channelId);
           if (!config) {
             await interaction.reply({
               content: "Auto-deletion is not enabled for this channel",
@@ -152,7 +152,7 @@ export const vanishCommand = {
           }
 
           const duration = formatDuration(config.vanishAfter);
-          const lastDeletion = formatTimestamp(config.lastDeletion);
+          const lastDeletion = formatTimestamp(config.lastDeletion ? new Date(config.lastDeletion) : null);
           const messagesDeleted = (
             config.messagesDeleted || 0
           ).toLocaleString();
@@ -162,7 +162,7 @@ export const vanishCommand = {
             `• Messages older than ${duration} will be deleted`,
             `• Total messages deleted: ${messagesDeleted}`,
             `• Last deletion: ${lastDeletion}`,
-            `• Active since: ${formatTimestamp(config.createdAt)}`,
+            `• Active since: ${formatTimestamp(config.createdAt ? new Date(config.createdAt) : null)}`,
           ].join("\n");
 
           await interaction.reply({

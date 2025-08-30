@@ -7,9 +7,9 @@ import {
 } from "discord.js";
 import type { Express } from "express";
 import TelegramBot from "node-telegram-bot-api";
-import { CartelDBClient } from "@cartel-sh/api";
+import { CartelClient } from "@cartel-sh/api";
 
-const client = new CartelDBClient(
+const cartel = new CartelClient(
   process.env.API_URL || "https://api.cartel.sh",
   process.env.API_KEY
 );
@@ -66,18 +66,28 @@ export function setupRoutes(app: Express, discordClient: Client) {
         throw new Error("Invalid Discord channel");
       }
 
+      // We need to get guild ID from the channel
+      const guildId = channel.guildId || "";
+      
       // Create the application first to get the application number
-      const result = await client.createApplication({
+      const result = await cartel.applications.create({
         messageId: "temp", // Temporary ID, will update after posting
-        walletAddress: data.walletAddress,
-        ensName: data.ensName || null,
-        github: data.github || null,
-        farcaster: data.farcaster || null,
-        lens: data.lens || null,
-        twitter: data.twitter || null,
-        excitement: data.excitement,
-        motivation: data.motivation,
-        signature: data.signature,
+        guildId: guildId,
+        channelId: ONJO_CHANNEL_ID,
+        applicantId: data.walletAddress, // Use wallet address as applicant ID
+        applicantName: data.ensName || data.walletAddress, // Use ENS name or wallet address
+        responses: {
+          walletAddress: data.walletAddress,
+          ensName: data.ensName || "",
+          github: data.github || "",
+          farcaster: data.farcaster || "",
+          lens: data.lens || "",
+          twitter: data.twitter || "",
+          excitement: data.excitement,
+          motivation: data.motivation,
+          signature: data.signature,
+        },
+        applicationNumber: 0, // Will be auto-generated
       });
       const applicationNumber = result.applicationNumber;
 

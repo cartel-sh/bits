@@ -8,9 +8,9 @@ import {
 } from "discord.js";
 import { startCommand, stopCommand } from "./commands/session";
 import { statsCommand } from "./commands/stats";
-import { CartelDBClient } from "@cartel-sh/api";
+import { CartelClient } from "@cartel-sh/api";
 
-const apiClient = new CartelDBClient(
+const cartel = new CartelClient(
   process.env.API_URL || "https://api.cartel.sh",
   process.env.API_KEY
 );
@@ -78,11 +78,14 @@ discordClient.on("interactionCreate", async (interaction: Interaction) => {
 
 const updateBotStatus = async (discordClient: Client) => {
   try {
-    const totalHours = await apiClient.getTotalTrackedHours();
-    await discordClient.user?.setActivity({
-      name: `${totalHours} hours tracked`,
-      type: ActivityType.Watching,
-    });
+    const totalHoursData = await cartel.practice.getStats('total');
+    const totalHours = totalHoursData.totalHours;
+    if (discordClient.user) {
+      await discordClient.user.setActivity({
+        name: `${totalHours} hours tracked`,
+        type: ActivityType.Watching,
+      });
+    }
   } catch (error) {
     console.error("[STATUS] Error updating bot status:", error);
   }

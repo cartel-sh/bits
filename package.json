@@ -27,7 +27,7 @@
     "dev:bots": "bun run --watch ./scripts/run-all-bots.ts"
   },
   "dependencies": {
-    "@cartel-sh/api": "^2.1.1",
+    "@cartel-sh/api": "^7.0.0",
     "@discordjs/rest": "^2.4.3",
     "@google/generative-ai": "^0.21.0",
     "@kobalte/core": "^0.13.9",
