@@ -46,7 +46,6 @@ const logger = {
 const { 
   ONJO_TOKEN, 
   ONJO_CLIENT_ID, 
-  ONJO_PORT, 
   ONJO_CHANNEL_ID,
   PUBLIC_URL,
   API_URL,
@@ -68,7 +67,6 @@ if (!ONJO_TOKEN || !ONJO_CLIENT_ID || !ONJO_CHANNEL_ID) {
 logger.info("Onjo bot starting up", {
   clientId: ONJO_CLIENT_ID,
   channelId: ONJO_CHANNEL_ID,
-  port: ONJO_PORT || 3001,
   apiUrl: API_URL || "https://api.cartel.sh",
   publicUrl: PUBLIC_URL || "https://bits.cartel.sh",
   hasApiKey: !!API_KEY,
@@ -480,16 +478,12 @@ discordClient.once("ready", async () => {
     guilds: discordClient.guilds.cache.size
   });
 
-  const port = ONJO_PORT || 3001;
-  app.listen(port, async () => {
-    logger.info("Webhook server started", {
-      port,
-      endpoint: "/onjo/webhook",
-      healthCheck: "/health"
-    });
-
-    await registerWebhook();
+  logger.info("Onjo Discord client ready - webhook routes configured", {
+    endpoint: "/onjo/webhook",
+    healthCheck: "/health"
   });
+
+  await registerWebhook();
 });
 
 const handleShutdown = async (signal: string) => {
