@@ -183,16 +183,10 @@ export function setupRoutes(app: Express, discordClient: Client) {
             value:
               [
                 appData.ensName ? `**ENS:** ${appData.ensName}` : null,
-                appData.github
-                  ? `**GitHub:** [View Profile](${appData.github})`
-                  : null,
-                appData.farcaster
-                  ? `**Farcaster:** [View Profile](${appData.farcaster})`
-                  : null,
-                appData.lens ? `**Lens:** [View Profile](${appData.lens})` : null,
-                appData.twitter
-                  ? `**Twitter:** [View Profile](${appData.twitter})`
-                  : null,
+                appData.github ? `**GitHub:** ${appData.github}` : null,
+                appData.farcaster ? `**Farcaster:** ${appData.farcaster}` : null,
+                appData.lens ? `**Lens:** ${appData.lens}` : null,
+                appData.twitter ? `**Twitter:** ${appData.twitter}` : null,
               ]
                 .filter(Boolean)
                 .join("\n") || "No social profiles provided",
@@ -239,7 +233,6 @@ export function setupRoutes(app: Express, discordClient: Client) {
         channelId: ONJO_CHANNEL_ID
       });
 
-      // Send to Telegram if configured
       const sentTo = ["discord"];
       if (telegramBot && ONJO_TELEGRAM_CHANNEL_ID) {
         const telegramMessage = `
