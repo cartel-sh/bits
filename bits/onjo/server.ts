@@ -25,22 +25,16 @@ const telegramBot = ONJO_TELEGRAM_BOT_TOKEN
   ? new TelegramBot(ONJO_TELEGRAM_BOT_TOKEN, { polling: false })
   : null;
 
-interface ApplicationPayload {
-  walletAddress: string;
-  ensName?: string;
-  github?: string;
-  farcaster?: string;
-  lens?: string;
-  twitter?: string;
-  excitement: string;
-  motivation: string;
-  signature: string;
-  message: string;
+interface WebhookPayload {
+  applicationId: string;
+  applicationNumber: number;
+  type: 'application_created';
 }
 
 export function setupRoutes(app: Express, discordClient: Client) {
   app.post("/api/application", async (req, res) => {
     try {
+      // Verify webhook secret
       if (ONJO_WEBHOOK_SECRET) {
         const authHeader = req.headers.authorization;
         if (!authHeader || authHeader !== `Bearer ${ONJO_WEBHOOK_SECRET}`) {
@@ -49,13 +43,22 @@ export function setupRoutes(app: Express, discordClient: Client) {
         }
       }
 
-      const data: ApplicationPayload = req.body;
-      console.log("Received application from:", data.walletAddress);
+      const webhook: WebhookPayload = req.body;
+      console.log("Received webhook:", webhook.type, "for application", webhook.applicationNumber);
 
-      if (!data.walletAddress || !data.excitement || !data.motivation) {
-        res.status(400).json({ error: "Missing required fields" });
+      if (!webhook.applicationId || !webhook.applicationNumber || webhook.type !== 'application_created') {
+        res.status(400).json({ error: "Invalid webhook payload" });
         return;
       }
+
+      const application = await cartel.applications.getByNumber(webhook.applicationNumber);
+      if (!application) {
+        console.error("Application not found:", webhook.applicationNumber);
+        res.status(404).json({ error: "Application not found" });
+        return;
+      }
+
+      console.log("Fetched application data for:", application.walletAddress);
 
       if (!ONJO_CHANNEL_ID) {
         throw new Error("Environment variable ONJO_CHANNEL_ID is required");
@@ -66,50 +69,25 @@ export function setupRoutes(app: Express, discordClient: Client) {
         throw new Error("Invalid Discord channel");
       }
 
-      // We need to get guild ID from the channel
-      const guildId = channel.guildId || "";
-      
-      // Create the application first to get the application number
-      const result = await cartel.applications.create({
-        messageId: "temp", // Temporary ID, will update after posting
-        guildId: guildId,
-        channelId: ONJO_CHANNEL_ID,
-        applicantId: data.walletAddress, // Use wallet address as applicant ID
-        applicantName: data.ensName || data.walletAddress, // Use ENS name or wallet address
-        responses: {
-          walletAddress: data.walletAddress,
-          ensName: data.ensName || "",
-          github: data.github || "",
-          farcaster: data.farcaster || "",
-          lens: data.lens || "",
-          twitter: data.twitter || "",
-          excitement: data.excitement,
-          motivation: data.motivation,
-          signature: data.signature,
-        },
-        applicationNumber: 0, // Will be auto-generated
-      });
-      const applicationNumber = result.applicationNumber;
-
       const embed = new EmbedBuilder()
-        .setTitle(`APPLICATION #${applicationNumber}`)
+        .setTitle(`APPLICATION #${application.applicationNumber}`)
         .setColor(0x2b2d31) // Discord dark theme color
-        .setDescription(`\`\`\`${data.walletAddress}\`\`\``)
+        .setDescription(`\`\`\`${application.walletAddress}\`\`\``)
         .addFields([
           {
             name: "Identity",
             value:
               [
-                data.ensName ? `**ENS:** ${data.ensName}` : null,
-                data.github
-                  ? `**GitHub:** [View Profile](${data.github})`
+                application.ensName ? `**ENS:** ${application.ensName}` : null,
+                application.github
+                  ? `**GitHub:** [View Profile](${application.github})`
                   : null,
-                data.farcaster
-                  ? `**Farcaster:** [View Profile](${data.farcaster})`
+                application.farcaster
+                  ? `**Farcaster:** [View Profile](${application.farcaster})`
                   : null,
-                data.lens ? `**Lens:** [View Profile](${data.lens})` : null,
-                data.twitter
-                  ? `**Twitter:** [View Profile](${data.twitter})`
+                application.lens ? `**Lens:** [View Profile](${application.lens})` : null,
+                application.twitter
+                  ? `**Twitter:** [View Profile](${application.twitter})`
                   : null,
               ]
                 .filter(Boolean)
@@ -118,12 +96,12 @@ export function setupRoutes(app: Express, discordClient: Client) {
           },
           {
             name: "What excites you the most in life?",
-            value: `> ${data.excitement.substring(0, 1000).replace(/\n/g, "\n> ")}`,
+            value: `> ${application.excitement?.substring(0, 1000).replace(/\n/g, "\n> ") || 'No response provided'}`,
             inline: false,
           },
           {
             name: "Why are you a good fit for the cartel?",
-            value: `> ${data.motivation.substring(0, 1000).replace(/\n/g, "\n> ")}`,
+            value: `> ${application.motivation?.substring(0, 1000).replace(/\n/g, "\n> ") || 'No response provided'}`,
             inline: false,
           },
         ])
@@ -132,15 +110,15 @@ export function setupRoutes(app: Express, discordClient: Client) {
 
       const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()
-          .setCustomId(`approve_${applicationNumber}`)
+          .setCustomId(`approve_${application.applicationNumber}`)
           .setLabel("YAY")
           .setStyle(ButtonStyle.Success),
         new ButtonBuilder()
-          .setCustomId(`reject_${applicationNumber}`)
+          .setCustomId(`reject_${application.applicationNumber}`)
           .setLabel("NAY")
           .setStyle(ButtonStyle.Danger),
         new ButtonBuilder()
-          .setCustomId(`delete_${applicationNumber}`)
+          .setCustomId(`delete_${application.applicationNumber}`)
           .setLabel("Delete")
           .setStyle(ButtonStyle.Secondary),
       );
@@ -150,25 +128,25 @@ export function setupRoutes(app: Express, discordClient: Client) {
         components: [buttons],
       });
 
-      // Update the application with the actual message ID
-      // Note: The API doesn't have an update method, so we might need to delete and recreate
-      // or the API should be updated to support this use case
+      // TODO: Update the application with the Discord message ID
+      // This would require an API endpoint to update the messageId field
+      console.log(`Discord message posted for application #${application.applicationNumber}: ${discordMessage.id}`);
 
       if (telegramBot && ONJO_TELEGRAM_CHANNEL_ID) {
         const telegramMessage = `
-<b>New Cartel Application #${applicationNumber}</b>
+<b>New Cartel Application #${application.applicationNumber}</b>
 
-<b>Wallet:</b> <code>${data.walletAddress}</code>
-${data.ensName ? `<b>ENS:</b> ${data.ensName}\n` : ""}
+<b>Wallet:</b> <code>${application.walletAddress}</code>
+${application.ensName ? `<b>ENS:</b> ${application.ensName}\n` : ""}
 <b>Socials:</b>
-${data.github ? `  • GitHub: ${data.github}\n` : ""}${data.farcaster ? `  • Farcaster: ${data.farcaster}\n` : ""}${data.lens ? `  • Lens: ${data.lens}\n` : ""}${data.twitter ? `  • Twitter: ${data.twitter}\n` : ""}
+${application.github ? `  • GitHub: ${application.github}\n` : ""}${application.farcaster ? `  • Farcaster: ${application.farcaster}\n` : ""}${application.lens ? `  • Lens: ${application.lens}\n` : ""}${application.twitter ? `  • Twitter: ${application.twitter}\n` : ""}
 <b>What excites them:</b>
-${data.excitement}
+${application.excitement || 'No response provided'}
 
 <b>Why they're a good fit:</b>
-${data.motivation}
+${application.motivation || 'No response provided'}
 
-<i>Submitted at ${new Date().toLocaleString()}</i>
+<i>Submitted at ${application.submittedAt ? new Date(application.submittedAt).toLocaleString() : 'Unknown'}</i>
         `.trim();
 
         try {
@@ -189,6 +167,7 @@ ${data.motivation}
       res.json({
         success: true,
         messageId: discordMessage.id,
+        applicationNumber: application.applicationNumber,
         sentTo: ONJO_TELEGRAM_CHANNEL_ID
           ? ["discord", "telegram"]
           : ["discord"],
