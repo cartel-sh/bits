@@ -93,6 +93,15 @@ const app = express();
 app.use(express.json());
 setupRoutes(app, discordClient);
 
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  logger.info("Express server started", {
+    port: PORT,
+    webhookEndpoint: "/onjo/webhook",
+    healthEndpoint: "/health"
+  });
+});
+
 async function registerWebhook(): Promise<void> {
   if (!PUBLIC_URL || !API_URL || !API_KEY) {
     logger.warn("Webhook auto-registration skipped - missing environment variables", {
