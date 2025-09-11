@@ -7,7 +7,7 @@ import {
 } from "discord.js";
 import type { Express } from "express";
 import TelegramBot from "node-telegram-bot-api";
-import { CartelClient } from "@cartel-sh/api";
+import { CartelClient, type WebhookEventPayload } from "@cartel-sh/api";
 
 const cartel = new CartelClient(
   process.env.API_URL || "https://api.cartel.sh",
@@ -25,69 +25,173 @@ const telegramBot = ONJO_TELEGRAM_BOT_TOKEN
   ? new TelegramBot(ONJO_TELEGRAM_BOT_TOKEN, { polling: false })
   : null;
 
-interface WebhookPayload {
-  applicationId: string;
-  applicationNumber: number;
-  type: 'application_created';
-}
+
+const logger = {
+  info: (message: string, data?: any) => {
+    console.log(`[INFO] ${new Date().toISOString()} - ${message}`, data ? JSON.stringify(data, null, 2) : '');
+  },
+  error: (message: string, error?: any) => {
+    console.error(`[ERROR] ${new Date().toISOString()} - ${message}`, error);
+  },
+  warn: (message: string, data?: any) => {
+    console.warn(`[WARN] ${new Date().toISOString()} - ${message}`, data ? JSON.stringify(data, null, 2) : '');
+  },
+  debug: (message: string, data?: any) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.debug(`[DEBUG] ${new Date().toISOString()} - ${message}`, data ? JSON.stringify(data, null, 2) : '');
+    }
+  }
+};
 
 export function setupRoutes(app: Express, discordClient: Client) {
-  app.post("/api/application", async (req, res) => {
+  app.post("/onjo/webhook", async (req, res) => {
+    const startTime = Date.now();
+    logger.info("Received webhook request", {
+      headers: {
+        'content-type': req.headers['content-type'],
+        'user-agent': req.headers['user-agent'],
+        'authorization': req.headers.authorization ? 'Bearer [REDACTED]' : 'None'
+      }
+    });
+
     try {
       // Verify webhook secret
       if (ONJO_WEBHOOK_SECRET) {
         const authHeader = req.headers.authorization;
         if (!authHeader || authHeader !== `Bearer ${ONJO_WEBHOOK_SECRET}`) {
+          logger.warn("Unauthorized webhook request", { authHeader: authHeader ? 'Present but invalid' : 'Missing' });
           res.status(401).json({ error: "Unauthorized" });
           return;
         }
       }
 
-      const webhook: WebhookPayload = req.body;
-      console.log("Received webhook:", webhook.type, "for application", webhook.applicationNumber);
+      const webhook: WebhookEventPayload = req.body;
+      logger.info("Webhook payload received", {
+        eventType: webhook.eventType,
+        eventId: webhook.eventId,
+        timestamp: webhook.timestamp,
+        applicationNumber: webhook.data?.applicationNumber,
+        walletAddress: webhook.data?.walletAddress ? `${webhook.data.walletAddress.slice(0, 6)}...${webhook.data.walletAddress.slice(-4)}` : 'Unknown',
+        metadata: webhook.metadata
+      });
 
-      if (!webhook.applicationId || !webhook.applicationNumber || webhook.type !== 'application_created') {
-        res.status(400).json({ error: "Invalid webhook payload" });
+      // Validate webhook payload structure
+      if (!webhook.eventType || !webhook.eventId || !webhook.data || !webhook.timestamp || !webhook.metadata) {
+        logger.error("Invalid webhook payload structure", { 
+          hasEventType: !!webhook.eventType,
+          hasEventId: !!webhook.eventId,
+          hasData: !!webhook.data,
+          hasTimestamp: !!webhook.timestamp,
+          hasMetadata: !!webhook.metadata
+        });
+        res.status(400).json({ error: "Invalid webhook payload structure" });
         return;
       }
 
-      const application = await cartel.applications.getByNumber(webhook.applicationNumber);
-      if (!application) {
-        console.error("Application not found:", webhook.applicationNumber);
-        res.status(404).json({ error: "Application not found" });
+      // Validate metadata structure
+      if (!webhook.metadata.source || !webhook.metadata.version) {
+        logger.error("Invalid webhook metadata structure", {
+          hasSource: !!webhook.metadata.source,
+          hasVersion: !!webhook.metadata.version,
+          metadata: webhook.metadata
+        });
+        res.status(400).json({ error: "Invalid webhook metadata structure" });
         return;
       }
 
-      console.log("Fetched application data for:", application.walletAddress);
+      // Check if this is an application_created event
+      if (webhook.eventType !== 'application_created') {
+        logger.info("Ignoring non-application event", { eventType: webhook.eventType });
+        res.json({ success: true, message: "Event type not handled by this bot" });
+        return;
+      }
+
+      // Validate application data - core required fields
+      if (!webhook.data.applicationId || !webhook.data.applicationNumber || !webhook.data.walletAddress) {
+        logger.error("Invalid application data in webhook", {
+          hasApplicationId: !!webhook.data.applicationId,
+          hasApplicationNumber: !!webhook.data.applicationNumber,
+          hasWalletAddress: !!webhook.data.walletAddress
+        });
+        res.status(400).json({ error: "Invalid application data in webhook payload" });
+        return;
+      }
+
+      // Validate required text fields
+      if (!webhook.data.excitement?.trim() || !webhook.data.motivation?.trim()) {
+        logger.error("Missing required text fields in application data", {
+          hasExcitement: !!webhook.data.excitement?.trim(),
+          hasMotivation: !!webhook.data.motivation?.trim(),
+          applicationNumber: webhook.data.applicationNumber
+        });
+        res.status(400).json({ error: "Missing required excitement or motivation fields" });
+        return;
+      }
+
+      // For the new webhook system, we already have all the application data in the payload
+      // But let's still verify it exists in the API for consistency
+      try {
+        const application = await cartel.applications.getByNumber(webhook.data.applicationNumber);
+        if (!application) {
+          logger.error("Application verification failed - not found in API", { 
+            applicationNumber: webhook.data.applicationNumber 
+          });
+          res.status(404).json({ error: "Application not found in API" });
+          return;
+        }
+        logger.info("Application verified in API", {
+          applicationId: application.id,
+          applicationNumber: application.applicationNumber,
+          status: application.status
+        });
+      } catch (apiError) {
+        logger.error("Failed to verify application in API", apiError);
+        // Continue with webhook data anyway, as the API might be temporarily unavailable
+        logger.warn("Proceeding with webhook data despite API verification failure");
+      }
+
+      // Use webhook data for creating Discord message
+      const appData = webhook.data;
+      
+      logger.info("Creating Discord message", {
+        channelId: ONJO_CHANNEL_ID,
+        applicationNumber: appData.applicationNumber
+      });
 
       if (!ONJO_CHANNEL_ID) {
         throw new Error("Environment variable ONJO_CHANNEL_ID is required");
       }
-      const channel = await discordClient.channels.fetch(ONJO_CHANNEL_ID);
 
+      const channel = await discordClient.channels.fetch(ONJO_CHANNEL_ID);
       if (!channel?.isTextBased()) {
+        logger.error("Invalid Discord channel", { channelId: ONJO_CHANNEL_ID, channelType: channel?.type });
         throw new Error("Invalid Discord channel");
       }
 
+      logger.debug("Discord channel fetched successfully", { 
+        channelName: (channel as TextChannel).name,
+        channelType: channel.type 
+      });
+
       const embed = new EmbedBuilder()
-        .setTitle(`APPLICATION #${application.applicationNumber}`)
+        .setTitle(`APPLICATION #${appData.applicationNumber}`)
         .setColor(0x2b2d31) // Discord dark theme color
-        .setDescription(`\`\`\`${application.walletAddress}\`\`\``)
+        .setDescription(`\`\`\`${appData.walletAddress}\`\`\``)
         .addFields([
           {
             name: "Identity",
             value:
               [
-                application.ensName ? `**ENS:** ${application.ensName}` : null,
-                application.github
-                  ? `**GitHub:** [View Profile](${application.github})`
+                appData.ensName ? `**ENS:** ${appData.ensName}` : null,
+                appData.github
+                  ? `**GitHub:** [View Profile](${appData.github})`
                   : null,
-                application.farcaster
-                  ? `**Farcaster:** [View Profile](${application.farcaster})`
+                appData.farcaster
+                  ? `**Farcaster:** [View Profile](${appData.farcaster})`
                   : null,
-                application.lens ? `**Lens:** [View Profile](${application.lens})` : null,
-                application.twitter
-                  ? `**Twitter:** [View Profile](${application.twitter})`
+                appData.lens ? `**Lens:** [View Profile](${appData.lens})` : null,
+                appData.twitter
+                  ? `**Twitter:** [View Profile](${appData.twitter})`
                   : null,
               ]
                 .filter(Boolean)
@@ -96,60 +200,70 @@ export function setupRoutes(app: Express, discordClient: Client) {
           },
           {
             name: "What excites you the most in life?",
-            value: `> ${application.excitement?.substring(0, 1000).replace(/\n/g, "\n> ") || 'No response provided'}`,
+            value: `> ${appData.excitement?.substring(0, 1000).replace(/\n/g, "\n> ") || 'No response provided'}`,
             inline: false,
           },
           {
             name: "Why are you a good fit for the cartel?",
-            value: `> ${application.motivation?.substring(0, 1000).replace(/\n/g, "\n> ") || 'No response provided'}`,
+            value: `> ${appData.motivation?.substring(0, 1000).replace(/\n/g, "\n> ") || 'No response provided'}`,
             inline: false,
           },
         ])
         .setFooter({ text: "Pending Review • 0 approvals | 0 rejections" })
-        .setTimestamp();
+        .setTimestamp(new Date(webhook.timestamp));
 
       const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()
-          .setCustomId(`approve_${application.applicationNumber}`)
+          .setCustomId(`approve_${appData.applicationNumber}`)
           .setLabel("YAY")
           .setStyle(ButtonStyle.Success),
         new ButtonBuilder()
-          .setCustomId(`reject_${application.applicationNumber}`)
+          .setCustomId(`reject_${appData.applicationNumber}`)
           .setLabel("NAY")
           .setStyle(ButtonStyle.Danger),
         new ButtonBuilder()
-          .setCustomId(`delete_${application.applicationNumber}`)
+          .setCustomId(`delete_${appData.applicationNumber}`)
           .setLabel("Delete")
           .setStyle(ButtonStyle.Secondary),
       );
 
+      logger.info("Sending Discord message", { applicationNumber: appData.applicationNumber });
       const discordMessage = await (channel as TextChannel).send({
         embeds: [embed],
         components: [buttons],
       });
 
-      // TODO: Update the application with the Discord message ID
-      // This would require an API endpoint to update the messageId field
-      console.log(`Discord message posted for application #${application.applicationNumber}: ${discordMessage.id}`);
+      logger.info("Discord message sent successfully", {
+        applicationNumber: appData.applicationNumber,
+        messageId: discordMessage.id,
+        channelId: ONJO_CHANNEL_ID
+      });
 
+      // Send to Telegram if configured
+      const sentTo = ["discord"];
       if (telegramBot && ONJO_TELEGRAM_CHANNEL_ID) {
         const telegramMessage = `
-<b>New Cartel Application #${application.applicationNumber}</b>
+<b>New Cartel Application #${appData.applicationNumber}</b>
 
-<b>Wallet:</b> <code>${application.walletAddress}</code>
-${application.ensName ? `<b>ENS:</b> ${application.ensName}\n` : ""}
+<b>Wallet:</b> <code>${appData.walletAddress}</code>
+${appData.ensName ? `<b>ENS:</b> ${appData.ensName}\n` : ""}
 <b>Socials:</b>
-${application.github ? `  • GitHub: ${application.github}\n` : ""}${application.farcaster ? `  • Farcaster: ${application.farcaster}\n` : ""}${application.lens ? `  • Lens: ${application.lens}\n` : ""}${application.twitter ? `  • Twitter: ${application.twitter}\n` : ""}
+${appData.github ? `  • GitHub: ${appData.github}\n` : ""}${appData.farcaster ? `  • Farcaster: ${appData.farcaster}\n` : ""}${appData.lens ? `  • Lens: ${appData.lens}\n` : ""}${appData.twitter ? `  • Twitter: ${appData.twitter}\n` : ""}
 <b>What excites them:</b>
-${application.excitement || 'No response provided'}
+${appData.excitement || 'No response provided'}
 
 <b>Why they're a good fit:</b>
-${application.motivation || 'No response provided'}
+${appData.motivation || 'No response provided'}
 
-<i>Submitted at ${application.submittedAt ? new Date(application.submittedAt).toLocaleString() : 'Unknown'}</i>
+<i>Submitted at ${new Date(appData.submittedAt).toLocaleString()}</i>
         `.trim();
 
         try {
+          logger.info("Sending Telegram message", { 
+            channelId: ONJO_TELEGRAM_CHANNEL_ID,
+            applicationNumber: appData.applicationNumber 
+          });
+          
           await telegramBot.sendMessage(
             ONJO_TELEGRAM_CHANNEL_ID,
             telegramMessage,
@@ -158,49 +272,88 @@ ${application.motivation || 'No response provided'}
               disable_web_page_preview: true,
             },
           );
-          console.log("Application sent to Telegram");
+          
+          logger.info("Telegram message sent successfully", { 
+            applicationNumber: appData.applicationNumber 
+          });
+          sentTo.push("telegram");
         } catch (telegramError) {
-          console.error("Failed to send to Telegram:", telegramError);
+          logger.error("Failed to send to Telegram", {
+            applicationNumber: appData.applicationNumber,
+            error: telegramError
+          });
         }
+      } else {
+        logger.debug("Telegram not configured, skipping", {
+          hasTelegramBot: !!telegramBot,
+          hasTelegramChannelId: !!ONJO_TELEGRAM_CHANNEL_ID
+        });
       }
+
+      const processingTime = Date.now() - startTime;
+      logger.info("Webhook processing completed", {
+        applicationNumber: appData.applicationNumber,
+        processingTimeMs: processingTime,
+        sentTo
+      });
 
       res.json({
         success: true,
         messageId: discordMessage.id,
-        applicationNumber: application.applicationNumber,
-        sentTo: ONJO_TELEGRAM_CHANNEL_ID
-          ? ["discord", "telegram"]
-          : ["discord"],
+        applicationNumber: appData.applicationNumber,
+        eventId: webhook.eventId,
+        processingTimeMs: processingTime,
+        sentTo,
       });
     } catch (error) {
-      console.error("Error handling application:", error);
+      const processingTime = Date.now() - startTime;
+      logger.error("Error processing webhook", {
+        error: error instanceof Error ? error.message : "Unknown error",
+        stack: error instanceof Error ? error.stack : undefined,
+        processingTimeMs: processingTime
+      });
+      
       res.status(500).json({
-        error: "Failed to process application",
+        error: "Failed to process webhook",
         details: error instanceof Error ? error.message : "Unknown error",
+        processingTimeMs: processingTime,
       });
     }
   });
 
   app.get("/health", (_, res) => {
+    logger.debug("Health check requested");
     res.json({
       status: "ok",
-      discord: discordClient.isReady(),
-      telegram: !!telegramBot,
+      timestamp: new Date().toISOString(),
+      discord: {
+        ready: discordClient.isReady(),
+        user: discordClient.user?.tag || null,
+        guilds: discordClient.guilds.cache.size,
+      },
+      telegram: {
+        configured: !!telegramBot,
+        channelId: ONJO_TELEGRAM_CHANNEL_ID || null,
+      },
+      webhook: {
+        endpoint: "/onjo/webhook",
+        secretConfigured: !!ONJO_WEBHOOK_SECRET,
+      },
+      uptime: process.uptime(),
     });
   });
 
-  app.post("/api/verify-signature", async (req, res) => {
-    try {
-      const { walletAddress } = req.body;
-
-      console.log("Signature verification requested for:", walletAddress);
-
-      res.json({
-        verified: true, // Placeholder
-        note: "Signature verification not yet implemented",
-      });
-    } catch (error) {
-      res.status(500).json({ error: "Verification failed" });
-    }
+  // Legacy endpoint for backward compatibility (will be removed in future)
+  app.post("/api/application", async (req, res) => {
+    logger.warn("Legacy webhook endpoint called - please update to /onjo/webhook", {
+      userAgent: req.headers['user-agent'],
+      ip: req.ip
+    });
+    
+    res.status(410).json({
+      error: "This endpoint is deprecated. Please use /onjo/webhook with the new webhook format.",
+      newEndpoint: "/onjo/webhook",
+      documentation: "See API documentation for the new webhook payload format"
+    });
   });
 }
