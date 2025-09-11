@@ -1,8 +1,5 @@
 import type { Client, TextChannel } from "discord.js";
 import {
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
   EmbedBuilder,
 } from "discord.js";
 import type { Express } from "express";
@@ -203,28 +200,12 @@ export function setupRoutes(app: Express, discordClient: Client) {
             inline: false,
           },
         ])
-        .setFooter({ text: "Pending Review • 0 approvals | 0 rejections" })
+        .setFooter({ text: `Application #${appData.applicationNumber}` })
         .setTimestamp(new Date(webhook.timestamp));
-
-      const buttons = new ActionRowBuilder<ButtonBuilder>().addComponents(
-        new ButtonBuilder()
-          .setCustomId(`approve_${appData.applicationNumber}`)
-          .setLabel("YAY")
-          .setStyle(ButtonStyle.Success),
-        new ButtonBuilder()
-          .setCustomId(`reject_${appData.applicationNumber}`)
-          .setLabel("NAY")
-          .setStyle(ButtonStyle.Danger),
-        new ButtonBuilder()
-          .setCustomId(`delete_${appData.applicationNumber}`)
-          .setLabel("Delete")
-          .setStyle(ButtonStyle.Secondary),
-      );
 
       logger.info("Sending Discord message", { applicationNumber: appData.applicationNumber });
       const discordMessage = await (channel as TextChannel).send({
         embeds: [embed],
-        components: [buttons],
       });
 
       logger.info("Discord message sent successfully", {
