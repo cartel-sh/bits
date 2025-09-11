@@ -2,7 +2,7 @@
 
 import { spawn } from "bun";
 
-const bots = ["kudasai", "sakura", "onjo"]; // Removed kumiko as it doesn't exist
+const bots = ["kudasai", "sakura", "onjo"];
 
 console.log("🚀 Starting all bots...\n");
 

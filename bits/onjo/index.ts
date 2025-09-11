@@ -19,11 +19,6 @@ import {
 } from "discord.js";
 import express from "express";
 import { CartelClient } from "@cartel-sh/api";
-
-const cartel = new CartelClient(
-  process.env.API_URL || "https://api.cartel.sh",
-  process.env.API_KEY
-);
 import { setupRoutes } from "./server";
 
 const logger = {
@@ -53,6 +48,18 @@ const {
   ONJO_WEBHOOK_SECRET
 } = process.env;
 
+const cartel = new CartelClient(
+  API_URL || "https://api.cartel.sh",
+  API_KEY
+);
+
+// Debug API key configuration
+logger.info("CartelClient configuration", {
+  apiUrl: API_URL || "https://api.cartel.sh",
+  hasApiKey: !!API_KEY,
+  apiKeyPrefix: API_KEY ? API_KEY.substring(0, 10) + "..." : "none"
+});
+
 if (!ONJO_TOKEN || !ONJO_CLIENT_ID || !ONJO_CHANNEL_ID) {
   logger.error("Missing required environment variables", {
     hasOnjoToken: !!ONJO_TOKEN,
@@ -71,7 +78,7 @@ logger.info("Onjo bot starting up", {
   publicUrl: PUBLIC_URL || "https://bits.cartel.sh",
   hasApiKey: !!API_KEY,
   hasWebhookSecret: !!ONJO_WEBHOOK_SECRET,
-  autoRegistrationEnabled: !!(PUBLIC_URL && API_URL && API_KEY)
+  autoRegistrationEnabled: !!(PUBLIC_URL && API_KEY)
 });
 
 const discordClient = new Client({
